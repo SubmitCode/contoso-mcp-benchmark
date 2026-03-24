@@ -1,0 +1,39 @@
+{
+  "top_n_default": 50,
+  "dimensions": {
+    "product": ["ProductName", "Category", "Subcategory", "Brand"],
+    "store": ["StoreName", "Country"],
+    "date": ["Year", "Quarter", "Month"]
+  },
+  "measures": {
+    "Net Sales": {
+      "type": "time_span",
+      "required_filters": ["date_range"],
+      "description": "Total net sales revenue (USD). Requires a date range filter.",
+      "example": "Net Sales for Q4 2024 in Germany"
+    },
+    "Margin": {
+      "type": "time_span",
+      "required_filters": ["date_range"],
+      "description": "Gross margin in USD (Net Sales minus cost). Requires a date range filter.",
+      "example": "Margin by product category for 2024"
+    },
+    "Margin %": {
+      "type": "time_span",
+      "required_filters": ["date_range"],
+      "description": "Gross margin as a percentage of Net Sales. Requires a date range filter.",
+      "example": "Margin % by brand in 2023"
+    },
+    "Quantity": {
+      "type": "time_span",
+      "required_filters": ["date_range"],
+      "description": "Total units sold. Requires a date range filter.",
+      "example": "Quantity sold by subcategory in H1 2024"
+    }
+  },
+  "sample_values": {
+    "Country": ["United States", "Germany", "France", "United Kingdom", "Australia", "Italy", "Canada", "Netherlands"],
+    "Category": ["Computers", "Cell phones", "TV and Video", "Audio", "Cameras and camcorders"],
+    "Brand": ["Contoso", "Fabrikam", "Litware", "Northwind Traders", "Proseware", "Wide World Importers"]
+  }
+}
