@@ -42,10 +42,10 @@ def _tools_to_openai(tools: list[dict]) -> list[dict]:
     ]
 
 
-_REASONING_MODELS = {"gpt-5.3-chat-latest"}  # models that use max_completion_tokens
+_REASONING_MODELS = {"gpt-5.4", "gpt-5.4-mini"}  # models that use max_completion_tokens
 
 
-def run_openai(prompt: str, tools: list[dict], call_tool: Callable, model: str = "gpt-5.3-chat-latest") -> RunResult:
+def run_openai(prompt: str, tools: list[dict], call_tool: Callable, model: str = "gpt-5.4") -> RunResult:
     client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     messages = [{"role": "user", "content": prompt}]
     oai_tools = _tools_to_openai(tools)

@@ -1,5 +1,5 @@
 """SQL Analytics Endpoint client for Fabric Lakehouse."""
-import os
+import decimal
 import struct
 import pyodbc
 from msal import ConfidentialClientApplication
@@ -71,6 +71,10 @@ def get_connection() -> pyodbc.Connection:
     return pyodbc.connect(conn_str, attrs_before={1256: token_struct}, timeout=30)
 
 
+def _coerce_row(row: dict) -> dict:
+    return {k: float(v) if isinstance(v, decimal.Decimal) else v for k, v in row.items()}
+
+
 def execute_sql(query: str, params: tuple = ()) -> list[dict]:
     """Execute a T-SQL query and return list of row dicts."""
     conn = get_connection()
@@ -78,7 +82,7 @@ def execute_sql(query: str, params: tuple = ()) -> list[dict]:
         cursor = conn.cursor()
         cursor.execute(query, params)
         cols = [col[0] for col in cursor.description]
-        return [dict(zip(cols, row)) for row in cursor.fetchall()]
+        return [_coerce_row(dict(zip(cols, row))) for row in cursor.fetchall()]
     finally:
         conn.close()
 
@@ -89,9 +93,12 @@ def _build_measure_query(
     date_from: str,
     date_to: str,
     filters: dict | None,
-    top_n: int = 50,
-) -> str:
-    """Build a T-SQL query equivalent to the SUMMARIZECOLUMNS DAX pattern."""
+    top_n: int = 100,
+) -> tuple[str, list]:
+    """Build a T-SQL query equivalent to the SUMMARIZECOLUMNS DAX pattern.
+
+    Returns (sql, params) where params is a list of bind values for pyodbc.
+    """
     if measure not in MEASURE_EXPRS:
         raise ValueError(f"Unknown measure '{measure}'. Available: {list(MEASURE_EXPRS)}")
 
@@ -110,19 +117,19 @@ def _build_measure_query(
     select_clause = ", ".join(select_cols)
     group_clause = ", ".join(group_cols)
 
-    where_parts = [f"s.OrderDate >= '{date_from}'", f"s.OrderDate <= '{date_to}'"]
+    where_parts = ["s.OrderDate >= ?", "s.OrderDate <= ?"]
+    params: list = [date_from, date_to]
 
     if filters:
         for col, val in filters.items():
             if col in DIMENSION_MAP:
                 a, c = DIMENSION_MAP[col]
-                where_parts.append(f"{a}.{c} = '{val}'")
+                where_parts.append(f"{a}.{c} = ?")
+                params.append(val)
 
     where_clause = " AND ".join(where_parts)
 
-    order_dir = "DESC"
-
-    return f"""
+    sql = f"""
 SELECT TOP {top_n}
     {select_clause},
     {measure_expr} AS [{measure}]
@@ -133,8 +140,9 @@ LEFT JOIN dbo.store st ON s.StoreKey = st.StoreKey
 LEFT JOIN dbo.date d ON CAST(s.OrderDate AS DATE) = CAST(d.Date AS DATE)
 WHERE {where_clause}
 GROUP BY {group_clause}
-ORDER BY {measure_expr} {order_dir}
+ORDER BY {measure_expr} DESC
 """.strip()
+    return sql, params
 
 
 def execute_measure_query(
@@ -143,11 +151,11 @@ def execute_measure_query(
     date_from: str,
     date_to: str,
     filters: dict | None = None,
-    top_n: int = 50,
+    top_n: int = 100,
 ) -> list[dict]:
     """Execute a measure query against the SQL Analytics Endpoint."""
-    sql = _build_measure_query(measure, dimensions, date_from, date_to, filters, top_n)
-    return execute_sql(sql)
+    sql, params = _build_measure_query(measure, dimensions, date_from, date_to, filters, top_n)
+    return execute_sql(sql, tuple(params))
 
 
 def get_distinct_values(column: str, top_n: int = 50) -> list:

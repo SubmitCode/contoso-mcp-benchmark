@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from mcp_good.server import get_kpi, get_top_products
+from mcp_good.server import get_kpi, get_top_products, get_data_model
 
 
 def test_get_kpi_enforces_date_range_for_time_span_measure():
@@ -23,7 +23,7 @@ def test_get_kpi_applies_top_n_limit():
         )
     mock.assert_called_once()
     call_kwargs = mock.call_args.kwargs
-    assert call_kwargs["top_n"] == 50
+    assert call_kwargs["top_n"] == 100
     assert call_kwargs["measure"] == "Net Sales"
 
 
@@ -35,6 +35,90 @@ def test_get_top_products_returns_limited_results():
             date_range={"from": "2024-01-01", "to": "2024-12-31"},
             n=10,
         )
-    assert len(result) <= 10
+    assert len(result["rows"]) <= 10
     call_kwargs = mock.call_args.kwargs
     assert call_kwargs["top_n"] == 10
+
+
+def test_get_data_model_returns_measures_and_dimensions():
+    model = get_data_model()
+    assert "measures" in model
+    assert "dimensions" in model
+    assert "sample_queries" in model
+    assert "anti_patterns" in model
+    assert "Net Sales" in model["measures"]
+    assert "Country" in model["dimensions"]
+
+
+def test_get_kpi_truncation_note():
+    mock_rows = [{"Country": f"C{i}", "Net Sales": i} for i in range(100)]
+    with patch("mcp_good.server.execute_measure_query", return_value=mock_rows):
+        result = get_kpi(
+            measure="Net Sales",
+            dimensions=["Country"],
+            date_range={"from": "2024-01-01", "to": "2024-12-31"},
+        )
+    assert "_note" in result
+    assert "truncated" in result["_note"]
+
+
+def test_get_kpi_no_truncation_note_when_under_cap():
+    mock_rows = [{"Country": f"C{i}", "Net Sales": i} for i in range(5)]
+    with patch("mcp_good.server.execute_measure_query", return_value=mock_rows):
+        result = get_kpi(
+            measure="Net Sales",
+            dimensions=["Country"],
+            date_range={"from": "2024-01-01", "to": "2024-12-31"},
+        )
+    assert "_note" not in result
+
+
+def test_get_kpi_empty_result_note():
+    with patch("mcp_good.server.execute_measure_query", return_value=[]):
+        result = get_kpi(
+            measure="Net Sales",
+            dimensions=["Country"],
+            date_range={"from": "2024-01-01", "to": "2024-12-31"},
+        )
+    assert result["rows"] == []
+    assert "_note" in result
+    assert "No data" in result["_note"]
+
+
+def test_get_kpi_invalid_date_format():
+    with pytest.raises(ValueError, match="ISO-format"):
+        get_kpi(
+            measure="Net Sales",
+            dimensions=["Country"],
+            date_range={"from": "01/01/2024", "to": "2024-12-31"},
+        )
+
+
+def test_get_kpi_date_from_after_to():
+    with pytest.raises(ValueError, match="must be <="):
+        get_kpi(
+            measure="Net Sales",
+            dimensions=["Country"],
+            date_range={"from": "2024-12-31", "to": "2024-01-01"},
+        )
+
+
+def test_get_kpi_high_cardinality_without_filter():
+    with pytest.raises(ValueError, match="high-cardinality"):
+        get_kpi(
+            measure="Net Sales",
+            dimensions=["ProductName"],
+            date_range={"from": "2024-01-01", "to": "2024-12-31"},
+        )
+
+
+def test_get_kpi_high_cardinality_with_brand_filter():
+    mock_rows = [{"ProductName": "P1", "Net Sales": 100}]
+    with patch("mcp_good.server.execute_measure_query", return_value=mock_rows):
+        result = get_kpi(
+            measure="Net Sales",
+            dimensions=["ProductName"],
+            date_range={"from": "2024-01-01", "to": "2024-12-31"},
+            filters={"Brand": "Contoso"},
+        )
+    assert result["rows"] == mock_rows

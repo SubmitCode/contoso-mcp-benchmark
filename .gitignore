@@ -24,5 +24,8 @@ results/
 .vscode/
 .idea/
 
+# Internal planning
+docs/superpowers/
+
 # pytest
 .pytest_cache/

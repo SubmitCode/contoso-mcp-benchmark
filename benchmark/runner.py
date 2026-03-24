@@ -1,8 +1,15 @@
 import csv
 import json
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-8s  %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 from benchmark.llm_clients import run_openai, run_anthropic, RunResult
 from benchmark.cost_calculator import calculate_cost
@@ -93,7 +100,8 @@ SERVERS = {
 }
 
 LLM_RUNNERS = {
-    "gpt-5.3-chat-latest": lambda p, t, c: run_openai(p, t, c, model="gpt-5.3-chat-latest"),
+    "gpt-5.4":             lambda p, t, c: run_openai(p, t, c, model="gpt-5.4"),
+    "gpt-5.4-mini":        lambda p, t, c: run_openai(p, t, c, model="gpt-5.4-mini"),
     "claude-opus-4-6":     lambda p, t, c: run_anthropic(p, t, c, model="claude-opus-4-6"),
     "claude-sonnet-4-6":   lambda p, t, c: run_anthropic(p, t, c, model="claude-sonnet-4-6"),
     "claude-haiku-4-5":    lambda p, t, c: run_anthropic(p, t, c, model="claude-haiku-4-5-20251001"),
@@ -103,72 +111,85 @@ LLM_RUNNERS = {
 def run_benchmark(models: list[str] | None = None, servers: list[str] | None = None) -> list[dict]:
     active_llms = {k: v for k, v in LLM_RUNNERS.items() if models is None or k in models}
     active_servers = {k: v for k, v in SERVERS.items() if servers is None or k in servers}
-    results = []
 
-    for prompt in PROMPTS:
-        for server_name, server in active_servers.items():
-            for llm_name, llm_fn in active_llms.items():
-                print(f"Running {prompt['id']} | {server_name:4} | {llm_name}...")
-                try:
-                    result = llm_fn(prompt["question"], server["tools"], server["call"])
-                    result.prompt_id = prompt["id"]
-                    result.server = server_name
-                    result.model = llm_name
-                    cost = calculate_cost(llm_name, result.input_tokens, result.output_tokens)
-                except Exception as exc:
-                    result = RunResult(
-                        model=llm_name,
-                        prompt_id=prompt["id"],
-                        server=server_name,
-                        input_tokens=0,
-                        output_tokens=0,
-                        tool_calls=0,
-                        final_answer="",
-                        error=str(exc),
-                    )
-                    cost = 0.0
+    runs = [
+        (prompt, server_name, server, llm_name, llm_fn)
+        for prompt in PROMPTS
+        for server_name, server in active_servers.items()
+        for llm_name, llm_fn in active_llms.items()
+    ]
+    total = len(runs)
 
-                expected = _GROUND_TRUTH.get(prompt.get("answer_key"))
-                q_score = quality_score(result.final_answer, expected)
-
-                if result.error:
-                    print(f"  ✗  error: {result.error}")
-                else:
-                    total_tok = result.input_tokens + result.output_tokens
-                    q_str = f"{q_score:.2f}" if q_score is not None else "n/a"
-                    print(f"  ✓  {result.tool_calls} calls | {total_tok:,} tok | ${cost:.4f} | quality={q_str}")
-
-                results.append({
-                    "prompt_id": result.prompt_id,
-                    "question": prompt["question"],
-                    "complexity": prompt.get("complexity"),
-                    "answer_type": prompt.get("answer_type"),
-                    "server": result.server,
-                    "model": result.model,
-                    "input_tokens": result.input_tokens,
-                    "output_tokens": result.output_tokens,
-                    "total_tokens": result.input_tokens + result.output_tokens,
-                    "tool_calls": result.tool_calls,
-                    "cost_usd": round(cost, 6),
-                    "quality_score": q_score,
-                    "error": result.error or "",
-                })
-
-    _write_csv(results)
-    _print_summary(results)
-    return results
-
-
-def _write_csv(results: list[dict]) -> None:
-    if not results:
-        return
     out_path = Path("results") / f"benchmark_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     out_path.parent.mkdir(exist_ok=True)
+
+    fieldnames = [
+        "prompt_id", "question", "complexity", "answer_type",
+        "server", "model", "input_tokens", "output_tokens", "total_tokens",
+        "tool_calls", "cost_usd", "quality_score", "error",
+    ]
+
+    results = []
+    logging.info("Starting benchmark: %d runs  →  %s", total, out_path)
+
     with open(out_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(results[0].keys()))
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(results)
-    print(f"\nResults saved to {out_path}")
+
+        for i, (prompt, server_name, server, llm_name, llm_fn) in enumerate(runs, 1):
+            logging.info("[%d/%d] %s | %s | %s", i, total, prompt["id"], server_name, llm_name)
+            try:
+                result = llm_fn(prompt["question"], server["tools"], server["call"])
+                result.prompt_id = prompt["id"]
+                result.server = server_name
+                result.model = llm_name
+                cost = calculate_cost(llm_name, result.input_tokens, result.output_tokens)
+            except Exception as exc:
+                result = RunResult(
+                    model=llm_name,
+                    prompt_id=prompt["id"],
+                    server=server_name,
+                    input_tokens=0,
+                    output_tokens=0,
+                    tool_calls=0,
+                    final_answer="",
+                    error=str(exc),
+                )
+                cost = 0.0
+
+            expected = _GROUND_TRUTH.get(prompt.get("answer_key"))
+            q_score = quality_score(result.final_answer, expected)
+
+            if result.error:
+                logging.error("  ✗  %s", result.error)
+            else:
+                total_tok = result.input_tokens + result.output_tokens
+                q_str = f"{q_score:.2f}" if q_score is not None else "n/a"
+                logging.info("  ✓  %d calls | %s tok | $%.4f | quality=%s",
+                             result.tool_calls, f"{total_tok:,}", cost, q_str)
+
+            row = {
+                "prompt_id": result.prompt_id,
+                "question": prompt["question"],
+                "complexity": prompt.get("complexity"),
+                "answer_type": prompt.get("answer_type"),
+                "server": result.server,
+                "model": result.model,
+                "input_tokens": result.input_tokens,
+                "output_tokens": result.output_tokens,
+                "total_tokens": result.input_tokens + result.output_tokens,
+                "tool_calls": result.tool_calls,
+                "cost_usd": round(cost, 6),
+                "quality_score": q_score,
+                "error": result.error or "",
+            }
+            writer.writerow(row)
+            f.flush()
+            results.append(row)
+
+    logging.info("Results saved to %s", out_path)
+    _print_summary(results)
+    return results
 
 
 def _print_summary(results: list[dict]) -> None:
@@ -184,13 +205,13 @@ def _print_summary(results: list[dict]) -> None:
             totals[key]["quality"] += r["quality_score"]
             totals[key]["quality_n"] += 1
 
-    print(f"\n{'Server | Model':<40} {'Total Cost':>12} {'Avg Tokens':>12} {'Avg Tools':>10} {'Avg Quality':>12}")
-    print("-" * 90)
+    logging.info("\n%-40s %12s %12s %10s %12s", "Server | Model", "Total Cost", "Avg Tokens", "Avg Tools", "Avg Quality")
+    logging.info("-" * 90)
     for key, v in sorted(totals.items()):
         avg_tokens = v["tokens"] // v["runs"] if v["runs"] else 0
         avg_calls = v["tool_calls"] // v["runs"] if v["runs"] else 0
         avg_quality = v["quality"] / v["quality_n"] if v["quality_n"] else float("nan")
-        print(f"{key:<40} ${v['cost']:>11.4f} {avg_tokens:>12} {avg_calls:>10} {avg_quality:>11.2f}")
+        logging.info("%-40s $%11.4f %12d %10d %11.2f", key, v["cost"], avg_tokens, avg_calls, avg_quality)
 
 
 if __name__ == "__main__":
