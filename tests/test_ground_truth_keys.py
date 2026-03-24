@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from benchmark.ground_truth import _SCALAR_QUERIES, _RANKED_QUERIES, _CUSTOM_KEYS
 
-_PROMPTS = json.loads((Path("benchmark/prompts.json")).read_text())
+_PROMPTS = json.loads((Path(__file__).parent.parent / "benchmark" / "prompts.json").read_text())
 
 
 def test_all_answer_keys_are_declared():
