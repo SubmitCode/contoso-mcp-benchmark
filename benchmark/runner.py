@@ -100,12 +100,14 @@ LLM_RUNNERS = {
 }
 
 
-def run_benchmark() -> list[dict]:
+def run_benchmark(models: list[str] | None = None, servers: list[str] | None = None) -> list[dict]:
+    active_llms = {k: v for k, v in LLM_RUNNERS.items() if models is None or k in models}
+    active_servers = {k: v for k, v in SERVERS.items() if servers is None or k in servers}
     results = []
 
     for prompt in PROMPTS:
-        for server_name, server in SERVERS.items():
-            for llm_name, llm_fn in LLM_RUNNERS.items():
+        for server_name, server in active_servers.items():
+            for llm_name, llm_fn in active_llms.items():
                 print(f"Running {prompt['id']} | {server_name:4} | {llm_name}...")
                 try:
                     result = llm_fn(prompt["question"], server["tools"], server["call"])
@@ -192,4 +194,11 @@ def _print_summary(results: list[dict]) -> None:
 
 
 if __name__ == "__main__":
-    run_benchmark()
+    import argparse
+    parser = argparse.ArgumentParser(description="Run Contoso MCP benchmark")
+    parser.add_argument("--models", nargs="+", choices=list(LLM_RUNNERS), default=None,
+                        metavar="MODEL", help="Models to run (default: all)")
+    parser.add_argument("--servers", nargs="+", choices=list(SERVERS), default=None,
+                        metavar="SERVER", help="Servers to run (default: all)")
+    args = parser.parse_args()
+    run_benchmark(models=args.models, servers=args.servers)
