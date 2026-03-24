@@ -2,57 +2,141 @@
   {
     "id": "P01",
     "question": "What were the total net sales in 2024?",
-    "expected_measure": "Net Sales",
-    "requires_date_range": true,
-    "complexity": "simple"
+    "complexity": "easy",
+    "answer_type": "scalar",
+    "answer_key": "net_sales_2024"
   },
   {
     "id": "P02",
-    "question": "Which are the top 5 product categories by net sales in 2024?",
-    "expected_measure": "Net Sales",
-    "requires_date_range": true,
-    "complexity": "simple"
+    "question": "What was the total quantity of units sold in 2024?",
+    "complexity": "easy",
+    "answer_type": "scalar",
+    "answer_key": "quantity_2024"
   },
   {
     "id": "P03",
-    "question": "What was the gross margin percentage by product category in Q4 2024?",
-    "expected_measure": "Margin %",
-    "requires_date_range": true,
-    "complexity": "medium"
+    "question": "Which country had the highest net sales in 2024?",
+    "complexity": "easy",
+    "answer_type": "top_1",
+    "answer_key": "top_country_net_sales_2024"
   },
   {
     "id": "P04",
-    "question": "How did total net sales evolve quarter by quarter in 2024?",
-    "expected_measure": "Net Sales",
-    "requires_date_range": true,
-    "complexity": "medium"
+    "question": "What were the net sales in Germany in 2024?",
+    "complexity": "easy",
+    "answer_type": "scalar",
+    "answer_key": "net_sales_germany_2024"
   },
   {
     "id": "P05",
-    "question": "Which country had the highest net sales in 2024?",
-    "expected_measure": "Net Sales",
-    "requires_date_range": true,
-    "complexity": "simple"
+    "question": "What was the overall margin % across all sales in 2024?",
+    "complexity": "easy",
+    "answer_type": "scalar",
+    "answer_key": "margin_pct_2024"
   },
   {
     "id": "P06",
-    "question": "Which brand had the best margin percentage in 2023?",
-    "expected_measure": "Margin %",
-    "requires_date_range": true,
-    "complexity": "medium"
+    "question": "Which product category had the highest net sales in 2024?",
+    "complexity": "easy",
+    "answer_type": "top_1",
+    "answer_key": "top_category_net_sales_2024"
   },
   {
     "id": "P07",
-    "question": "Compare net sales in Germany vs United States for H1 2024.",
-    "expected_measure": "Net Sales",
-    "requires_date_range": true,
-    "complexity": "hard"
+    "question": "What were the net sales for each quarter in 2023? List Q1 through Q4.",
+    "complexity": "medium",
+    "answer_type": "ranked_list",
+    "answer_key": "net_sales_by_quarter_2023"
   },
   {
     "id": "P08",
-    "question": "Which product subcategory sold the most units in 2024 and what was its margin?",
-    "expected_measure": "Quantity",
-    "requires_date_range": true,
-    "complexity": "hard"
+    "question": "What are the top 3 product categories by net sales in 2024?",
+    "complexity": "medium",
+    "answer_type": "ranked_list",
+    "answer_key": "top3_categories_net_sales_2024"
+  },
+  {
+    "id": "P09",
+    "question": "Which brand had the highest margin % in 2024?",
+    "complexity": "medium",
+    "answer_type": "top_1",
+    "answer_key": "top_brand_margin_pct_2024"
+  },
+  {
+    "id": "P10",
+    "question": "Did Germany or the United States have higher net sales in 2024?",
+    "complexity": "medium",
+    "answer_type": "comparison",
+    "answer_key": "germany_vs_usa_net_sales_2024"
+  },
+  {
+    "id": "P11",
+    "question": "What were the net sales in the first half (Jan–Jun) vs second half (Jul–Dec) of 2023? Which half was higher?",
+    "complexity": "medium",
+    "answer_type": "comparison",
+    "answer_key": "h1_vs_h2_net_sales_2023"
+  },
+  {
+    "id": "P12",
+    "question": "What are the top 5 brands by net sales in 2024?",
+    "complexity": "medium",
+    "answer_type": "ranked_list",
+    "answer_key": "top5_brands_net_sales_2024"
+  },
+  {
+    "id": "P13",
+    "question": "Which continent had the highest total quantity sold in 2024?",
+    "complexity": "medium",
+    "answer_type": "top_1",
+    "answer_key": "top_continent_quantity_2024"
+  },
+  {
+    "id": "P14",
+    "question": "Which product subcategory sold the most units in 2024?",
+    "complexity": "hard",
+    "answer_type": "top_1",
+    "answer_key": "top_subcategory_quantity_2024"
+  },
+  {
+    "id": "P15",
+    "question": "What are the top 3 brands by margin % within the Computers category in 2024?",
+    "complexity": "hard",
+    "answer_type": "ranked_list",
+    "answer_key": "top3_brands_margin_pct_computers_2024"
+  },
+  {
+    "id": "P16",
+    "question": "In which year — 2021, 2022, or 2023 — was the total margin % highest?",
+    "complexity": "hard",
+    "answer_type": "top_1",
+    "answer_key": "best_year_margin_pct"
+  },
+  {
+    "id": "P17",
+    "question": "Did net sales in the United States increase or decrease from 2022 to 2023?",
+    "complexity": "hard",
+    "answer_type": "trend",
+    "answer_key": "usa_net_sales_trend_2022_2023"
+  },
+  {
+    "id": "P18",
+    "question": "Which month in 2023 had the highest net sales?",
+    "complexity": "hard",
+    "answer_type": "month",
+    "answer_key": "top_month_net_sales_2023"
+  },
+  {
+    "id": "P19",
+    "question": "What are the top 3 countries by net sales in 2023?",
+    "complexity": "hard",
+    "answer_type": "ranked_list",
+    "answer_key": "top3_countries_net_sales_2023"
+  },
+  {
+    "id": "P20",
+    "question": "Which product category improved its margin % the most from 2022 to 2023?",
+    "complexity": "hard",
+    "answer_type": "top_1",
+    "answer_key": "most_improved_category_margin_pct_2022_2023"
   }
 ]
