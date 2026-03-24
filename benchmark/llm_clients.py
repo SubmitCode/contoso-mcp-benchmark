@@ -42,7 +42,7 @@ def _tools_to_openai(tools: list[dict]) -> list[dict]:
     ]
 
 
-_REASONING_MODELS = {"gpt-5.3-codex"}  # models that use max_completion_tokens
+_REASONING_MODELS = {"gpt-5.3-chat-latest"}  # models that use max_completion_tokens
 
 
 def run_openai(prompt: str, tools: list[dict], call_tool: Callable, model: str = "gpt-5.3-chat-latest") -> RunResult:

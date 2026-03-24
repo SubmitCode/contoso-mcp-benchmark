@@ -94,7 +94,6 @@ SERVERS = {
 
 LLM_RUNNERS = {
     "gpt-5.3-chat-latest": lambda p, t, c: run_openai(p, t, c, model="gpt-5.3-chat-latest"),
-    "gpt-5.3-codex":       lambda p, t, c: run_openai(p, t, c, model="gpt-5.3-codex"),
     "claude-opus-4-6":     lambda p, t, c: run_anthropic(p, t, c, model="claude-opus-4-6"),
     "claude-sonnet-4-6":   lambda p, t, c: run_anthropic(p, t, c, model="claude-sonnet-4-6"),
     "claude-haiku-4-5":    lambda p, t, c: run_anthropic(p, t, c, model="claude-haiku-4-5-20251001"),
