@@ -5,6 +5,9 @@ from typing import Callable, Optional
 
 import openai
 import anthropic
+import google.generativeai as genai
+
+genai.configure(api_key=os.environ.get("GOOGLE_API_KEY", ""))
 
 
 def _fmt_tool_call(name: str, args: dict) -> str:
@@ -149,3 +152,79 @@ def run_anthropic(prompt: str, tools: list[dict], call_tool: Callable, model: st
     return RunResult(model=model, prompt_id="", server="", input_tokens=total_input,
                      output_tokens=total_output, tool_calls=tool_call_count,
                      final_answer="", error="Max turns exceeded")
+
+
+def run_gemini(prompt: str, tools: list[dict], call_tool: Callable, model: str = "gemini-1.5-pro") -> RunResult:
+    def _make_function(t: dict) -> genai.protos.FunctionDeclaration:
+        schema = t.get("inputSchema", {})
+        return genai.protos.FunctionDeclaration(
+            name=t["name"],
+            description=t["description"],
+            parameters=genai.protos.Schema(
+                type=genai.protos.Type.OBJECT,
+                properties={
+                    k: genai.protos.Schema(type=genai.protos.Type.STRING)
+                    for k in schema.get("properties", {}).keys()
+                },
+                required=schema.get("required", []),
+            ),
+        )
+
+    gemini_tools = genai.protos.Tool(function_declarations=[_make_function(t) for t in tools])
+    client = genai.GenerativeModel(model, tools=[gemini_tools])
+    chat = client.start_chat()
+
+    last_prompt_tokens = 0
+    total_output = 0
+    tool_call_count = 0
+
+    resp = chat.send_message(prompt)
+    for _ in range(10):
+        if resp.usage_metadata:
+            last_prompt_tokens = resp.usage_metadata.prompt_token_count or 0
+            total_output += resp.usage_metadata.candidates_token_count or 0
+
+        if not resp.candidates or not resp.candidates[0].content.parts:
+            return RunResult(model=model, prompt_id="", server="",
+                             input_tokens=last_prompt_tokens, output_tokens=total_output,
+                             tool_calls=tool_call_count, final_answer="",
+                             error="Empty response from Gemini")
+
+        text_answer = None
+        function_calls = []
+        for part in resp.candidates[0].content.parts:
+            if hasattr(part, "text") and part.text:
+                text_answer = part.text
+            if hasattr(part, "function_call") and part.function_call.name:
+                function_calls.append(part.function_call)
+
+        if text_answer is not None and not function_calls:
+            return RunResult(model=model, prompt_id="", server="",
+                             input_tokens=last_prompt_tokens, output_tokens=total_output,
+                             tool_calls=tool_call_count, final_answer=text_answer)
+
+        if function_calls:
+            response_parts = []
+            for fc in function_calls:
+                tool_call_count += 1
+                print(_fmt_tool_call(fc.name, dict(fc.args)))
+                try:
+                    result = call_tool(fc.name, dict(fc.args))
+                    result_content = json.dumps(result) if not isinstance(result, str) else result
+                except Exception as exc:
+                    result_content = json.dumps({"error": str(exc)})
+                response_parts.append(genai.protos.Part(
+                    function_response=genai.protos.FunctionResponse(
+                        name=fc.name, response={"result": result_content}
+                    )
+                ))
+            resp = chat.send_message(genai.protos.Content(parts=response_parts))
+        else:
+            return RunResult(model=model, prompt_id="", server="",
+                             input_tokens=last_prompt_tokens, output_tokens=total_output,
+                             tool_calls=tool_call_count, final_answer="",
+                             error="Empty response from Gemini")
+
+    return RunResult(model=model, prompt_id="", server="",
+                     input_tokens=last_prompt_tokens, output_tokens=total_output,
+                     tool_calls=tool_call_count, final_answer="", error="Max turns exceeded")
