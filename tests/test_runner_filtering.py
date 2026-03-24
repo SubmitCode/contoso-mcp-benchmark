@@ -1,5 +1,10 @@
-from unittest.mock import patch, MagicMock
-from benchmark.runner import run_benchmark, LLM_RUNNERS, SERVERS
+from unittest.mock import patch
+from benchmark.runner import run_benchmark
+
+_FAKE_SERVER = {
+    "tools": [],
+    "call": lambda name, args: {},
+}
 
 
 def _make_mock_llm(answer="42"):
@@ -16,7 +21,7 @@ def _make_mock_llm(answer="42"):
 def test_run_benchmark_filters_models():
     mock_fn = _make_mock_llm()
     with patch.dict("benchmark.runner.LLM_RUNNERS", {"model-a": mock_fn, "model-b": mock_fn}, clear=True), \
-         patch.dict("benchmark.runner.SERVERS", {"good": list(SERVERS.values())[0]}, clear=True), \
+         patch.dict("benchmark.runner.SERVERS", {"good": _FAKE_SERVER}, clear=True), \
          patch("benchmark.runner.PROMPTS", [{"id": "P01", "question": "q?"}]), \
          patch("benchmark.runner._write_csv"), patch("benchmark.runner._print_summary"):
         results = run_benchmark(models=["model-a"])
@@ -27,10 +32,7 @@ def test_run_benchmark_filters_models():
 def test_run_benchmark_filters_servers():
     mock_fn = _make_mock_llm()
     with patch.dict("benchmark.runner.LLM_RUNNERS", {"model-a": mock_fn}, clear=True), \
-         patch.dict("benchmark.runner.SERVERS", {
-             "bad": list(SERVERS.values())[0],
-             "good": list(SERVERS.values())[0],
-         }, clear=True), \
+         patch.dict("benchmark.runner.SERVERS", {"bad": _FAKE_SERVER, "good": _FAKE_SERVER}, clear=True), \
          patch("benchmark.runner.PROMPTS", [{"id": "P01", "question": "q?"}]), \
          patch("benchmark.runner._write_csv"), patch("benchmark.runner._print_summary"):
         results = run_benchmark(servers=["good"])
@@ -41,10 +43,7 @@ def test_run_benchmark_filters_servers():
 def test_run_benchmark_no_filter_runs_all():
     mock_fn = _make_mock_llm()
     with patch.dict("benchmark.runner.LLM_RUNNERS", {"m1": mock_fn, "m2": mock_fn}, clear=True), \
-         patch.dict("benchmark.runner.SERVERS", {
-             "bad": list(SERVERS.values())[0],
-             "good": list(SERVERS.values())[0],
-         }, clear=True), \
+         patch.dict("benchmark.runner.SERVERS", {"bad": _FAKE_SERVER, "good": _FAKE_SERVER}, clear=True), \
          patch("benchmark.runner.PROMPTS", [{"id": "P01", "question": "q?"}]), \
          patch("benchmark.runner._write_csv"), patch("benchmark.runner._print_summary"):
         results = run_benchmark()

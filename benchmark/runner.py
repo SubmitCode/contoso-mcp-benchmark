@@ -197,8 +197,8 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Run Contoso MCP benchmark")
     parser.add_argument("--models", nargs="+", choices=list(LLM_RUNNERS), default=None,
-                        metavar="MODEL", help="Models to run (default: all)")
+                        help="Models to run (default: all)")
     parser.add_argument("--servers", nargs="+", choices=list(SERVERS), default=None,
-                        metavar="SERVER", help="Servers to run (default: all)")
+                        help="Servers to run (default: all)")
     args = parser.parse_args()
     run_benchmark(models=args.models, servers=args.servers)
