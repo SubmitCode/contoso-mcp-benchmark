@@ -24,6 +24,7 @@ def get_kpi(
     dimensions: list,
     date_range: dict = None,
     filters: dict = None,
+    _top_n: int = None,   # internal override, not exposed in docstring
 ) -> list[dict]:
     """
     Query a KPI measure grouped by dimensions.
@@ -39,24 +40,25 @@ def get_kpi(
     """
     _validate_measure_filters(measure, date_range)
 
+    top_n = _top_n if _top_n is not None else TOP_N
     dim_str = ", ".join(f"'{d}'" for d in dimensions)
     filter_parts = [
-        f"'Date'[Date] >= DATE({date_range['from'].replace('-', ',')}) && "
-        f"'Date'[Date] <= DATE({date_range['to'].replace('-', ',')})"
+        f"'Date'[Date] >= DATE({date_range['from'].replace('-', ',')})",
+        f"'Date'[Date] <= DATE({date_range['to'].replace('-', ',')})",
     ]
 
     if filters:
         for col, val in filters.items():
-            filter_parts.append(f"'{col}' = \"{val}\"")
+            filter_parts.append(f"\"{val}\" IN VALUES('{col}'[{col}])")
 
-    where = " && ".join(filter_parts)
+    where = ", ".join(filter_parts)
 
-    # Use CALCULATETABLE to correctly scope filters within the model's filter context
+    # Use CALCULATETABLE with direct filter predicates and correct alias syntax
     dax = (
-        f"EVALUATE TOPN({TOP_N}, "
+        f"EVALUATE TOPN({top_n}, "
         f"CALCULATETABLE("
-        f"SUMMARIZECOLUMNS({dim_str}, \"[{measure}]\", [{measure}]), "
-        f"FILTER(ALL(), {where})"
+        f"SUMMARIZECOLUMNS({dim_str}, \"{measure}\", [{measure}]), "
+        f"{where}"
         f"), [{measure}], DESC)"
     )
     return execute_dax(dax)
@@ -81,14 +83,14 @@ def get_top_products(
     _validate_measure_filters(measure, date_range)
     n = min(n, TOP_N)
     filters = {"Category": category} if category else None
-    return get_kpi(measure=measure, dimensions=["ProductName", "Category"], date_range=date_range, filters=filters)
+    return get_kpi(measure=measure, dimensions=["ProductName", "Category"], date_range=date_range, filters=filters, _top_n=n)
 
 
 def get_dimension_values(dimension_column: str) -> list:
     """
     Get distinct values for a dimension column. Use before filtering to see valid values.
 
-    Available columns: Country, Region, Category, Subcategory, ChannelName, Year, Quarter
+    Available columns: Country, Category, Subcategory, Brand, StoreName, Year, Quarter, Month
     Returns at most 50 values.
     """
     dax = f"EVALUATE TOPN({TOP_N}, VALUES('{dimension_column}'), '{dimension_column}'[{dimension_column}])"

@@ -14,14 +14,21 @@ def test_get_kpi_raises_on_unknown_measure():
 
 
 def test_get_kpi_applies_top_n_limit():
-    mock_rows = [{"Country": f"C{i}", "Net Sales": i} for i in range(200)]
-    with patch("mcp_good.server.execute_dax", return_value=mock_rows[:50]):
-        result = get_kpi(
+    mock_rows = [{"Country": f"C{i}", "Net Sales": i} for i in range(50)]
+    captured_dax = []
+
+    def capture_dax(query):
+        captured_dax.append(query)
+        return mock_rows
+
+    with patch("mcp_good.server.execute_dax", side_effect=capture_dax):
+        get_kpi(
             measure="Net Sales",
             dimensions=["Country"],
             date_range={"from": "2024-01-01", "to": "2024-12-31"},
         )
-    assert len(result) <= 50
+    assert len(captured_dax) == 1
+    assert "TOPN(50" in captured_dax[0]
 
 
 def test_get_top_products_returns_limited_results():
