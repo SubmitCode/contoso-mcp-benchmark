@@ -1,11 +1,14 @@
 import os
 import json
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Optional
 
 import openai
 import anthropic
 import google.generativeai as genai
+
+# Minor 7: configure once at module level
+genai.configure(api_key=os.environ.get("GOOGLE_API_KEY", ""))
 
 
 @dataclass
@@ -17,7 +20,7 @@ class RunResult:
     output_tokens: int
     tool_calls: int
     final_answer: str
-    error: str = None
+    error: Optional[str] = None  # Minor 7: fix type annotation
 
 
 def _tools_to_openai(tools: list[dict]) -> list[dict]:
@@ -53,12 +56,24 @@ def run_openai(prompt: str, tools: list[dict], call_tool: Callable, model: str =
                 tool_calls=tool_call_count, final_answer=choice.message.content,
             )
 
-        if choice.finish_reason == "tool_calls":
+        elif choice.finish_reason == "tool_calls":
             messages.append(choice.message)
             for tc in choice.message.tool_calls:
                 tool_call_count += 1
-                result = call_tool(tc.function.name, json.loads(tc.function.arguments))
-                messages.append({"role": "tool", "tool_call_id": tc.id, "content": json.dumps(result)})
+                # Critical 1: wrap call_tool in try/except
+                try:
+                    result = call_tool(tc.function.name, json.loads(tc.function.arguments))
+                    result_content = json.dumps(result) if not isinstance(result, str) else result
+                except Exception as exc:
+                    result_content = json.dumps({"error": str(exc)})
+                messages.append({"role": "tool", "tool_call_id": tc.id, "content": result_content})
+
+        else:
+            # Important 4: handle unrecognised finish_reason
+            return RunResult(model=model, prompt_id="", server="",
+                             input_tokens=total_input, output_tokens=total_output,
+                             tool_calls=tool_call_count, final_answer="",
+                             error=f"Unexpected finish_reason: {choice.finish_reason}")
 
     return RunResult(model=model, prompt_id="", server="", input_tokens=total_input,
                      output_tokens=total_output, tool_calls=tool_call_count,
@@ -89,19 +104,31 @@ def run_anthropic(prompt: str, tools: list[dict], call_tool: Callable, model: st
                              input_tokens=total_input, output_tokens=total_output,
                              tool_calls=tool_call_count, final_answer=answer)
 
-        if resp.stop_reason == "tool_use":
+        elif resp.stop_reason == "tool_use":
             messages.append({"role": "assistant", "content": resp.content})
             tool_results = []
             for block in resp.content:
                 if block.type == "tool_use":
                     tool_call_count += 1
-                    result = call_tool(block.name, block.input)
+                    # Critical 1: wrap call_tool in try/except
+                    try:
+                        result = call_tool(block.name, block.input)
+                        result_content = json.dumps(result) if not isinstance(result, str) else result
+                    except Exception as exc:
+                        result_content = json.dumps({"error": str(exc)})
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": block.id,
-                        "content": json.dumps(result),
+                        "content": result_content,
                     })
             messages.append({"role": "user", "content": tool_results})
+
+        else:
+            # Important 4: handle unrecognised stop_reason
+            return RunResult(model=model, prompt_id="", server="",
+                             input_tokens=total_input, output_tokens=total_output,
+                             tool_calls=tool_call_count, final_answer="",
+                             error=f"Unexpected stop_reason: {resp.stop_reason}")
 
     return RunResult(model=model, prompt_id="", server="", input_tokens=total_input,
                      output_tokens=total_output, tool_calls=tool_call_count,
@@ -109,49 +136,86 @@ def run_anthropic(prompt: str, tools: list[dict], call_tool: Callable, model: st
 
 
 def run_gemini(prompt: str, tools: list[dict], call_tool: Callable, model: str = "gemini-1.5-pro") -> RunResult:
-    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
+    # Minor 7: genai.configure moved to module level
 
-    def _make_function(t: dict):
+    # Important 5: forward tool parameters in FunctionDeclaration
+    def _make_function(t: dict) -> genai.protos.FunctionDeclaration:
+        schema = t.get("inputSchema", {})
         return genai.protos.FunctionDeclaration(
             name=t["name"],
             description=t["description"],
-            parameters=genai.protos.Schema(type=genai.protos.Type.OBJECT),
+            parameters=genai.protos.Schema(
+                type=genai.protos.Type.OBJECT,
+                properties={
+                    k: genai.protos.Schema(type=genai.protos.Type.STRING)
+                    for k in schema.get("properties", {}).keys()
+                },
+                required=schema.get("required", []),
+            ),
         )
 
     gemini_tools = genai.protos.Tool(function_declarations=[_make_function(t) for t in tools])
     client = genai.GenerativeModel(model, tools=[gemini_tools])
     chat = client.start_chat()
-    total_input, total_output, tool_call_count = 0, 0, 0
+
+    # Important 6: track prompt tokens as last-seen value (cumulative), output tokens as sum
+    last_prompt_tokens = 0
+    total_output = 0
+    tool_call_count = 0
 
     resp = chat.send_message(prompt)
     for _ in range(10):
         # Capture tokens for every response including the first
         if resp.usage_metadata:
-            total_input += resp.usage_metadata.prompt_token_count or 0
+            # Important 6: prompt_token_count is cumulative — keep last value only
+            last_prompt_tokens = resp.usage_metadata.prompt_token_count or 0
             total_output += resp.usage_metadata.candidates_token_count or 0
 
-        part = resp.candidates[0].content.parts[0]
-
-        # Return immediately if this is a final text answer (may happen on first turn)
-        if hasattr(part, "text") and part.text:
+        # Critical 3: guard against empty candidates/parts
+        if not resp.candidates or not resp.candidates[0].content.parts:
             return RunResult(model=model, prompt_id="", server="",
-                             input_tokens=total_input, output_tokens=total_output,
-                             tool_calls=tool_call_count, final_answer=part.text)
+                             input_tokens=last_prompt_tokens, output_tokens=total_output,
+                             tool_calls=tool_call_count, final_answer="",
+                             error="Empty response from Gemini")
 
-        if hasattr(part, "function_call"):
-            tool_call_count += 1
-            fc = part.function_call
-            result = call_tool(fc.name, dict(fc.args))
-            resp = chat.send_message(
-                genai.protos.Content(parts=[genai.protos.Part(
+        # Critical 2: iterate all parts, not just parts[0]
+        text_answer = None
+        function_calls = []
+        for part in resp.candidates[0].content.parts:
+            if hasattr(part, "text") and part.text:
+                text_answer = part.text
+            if hasattr(part, "function_call") and part.function_call.name:
+                function_calls.append(part.function_call)
+
+        # Return immediately if this is a final text answer
+        if text_answer is not None and not function_calls:
+            return RunResult(model=model, prompt_id="", server="",
+                             input_tokens=last_prompt_tokens, output_tokens=total_output,
+                             tool_calls=tool_call_count, final_answer=text_answer)
+
+        if function_calls:
+            response_parts = []
+            for fc in function_calls:
+                tool_call_count += 1
+                # Critical 1: wrap call_tool in try/except
+                try:
+                    result = call_tool(fc.name, dict(fc.args))
+                    result_content = json.dumps(result) if not isinstance(result, str) else result
+                except Exception as exc:
+                    result_content = json.dumps({"error": str(exc)})
+                response_parts.append(genai.protos.Part(
                     function_response=genai.protos.FunctionResponse(
-                        name=fc.name, response={"result": json.dumps(result)}
+                        name=fc.name, response={"result": result_content}
                     )
-                )])
-            )
+                ))
+            resp = chat.send_message(genai.protos.Content(parts=response_parts))
         else:
-            break
+            # Critical 3: no text and no function calls — return proper error instead of break
+            return RunResult(model=model, prompt_id="", server="",
+                             input_tokens=last_prompt_tokens, output_tokens=total_output,
+                             tool_calls=tool_call_count, final_answer="",
+                             error="Empty response from Gemini")
 
-    return RunResult(model=model, prompt_id="", server="", input_tokens=total_input,
-                     output_tokens=total_output, tool_calls=tool_call_count,
-                     final_answer="", error="Max turns exceeded")
+    return RunResult(model=model, prompt_id="", server="",
+                     input_tokens=last_prompt_tokens, output_tokens=total_output,
+                     tool_calls=tool_call_count, final_answer="", error="Max turns exceeded")
