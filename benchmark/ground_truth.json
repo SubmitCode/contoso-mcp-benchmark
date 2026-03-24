@@ -1,0 +1,105 @@
+{
+  "net_sales_2024": {
+    "type": "scalar",
+    "value": 83795461.72928
+  },
+  "quantity_2024": {
+    "type": "scalar",
+    "value": 331195.0
+  },
+  "net_sales_germany_2024": {
+    "type": "scalar",
+    "value": 4885648.88466
+  },
+  "margin_pct_2024": {
+    "type": "scalar",
+    "value": 55.989403
+  },
+  "top_country_net_sales_2024": {
+    "type": "top_1",
+    "value": "Online"
+  },
+  "top_category_net_sales_2024": {
+    "type": "top_1",
+    "value": "Computers"
+  },
+  "top3_categories_net_sales_2024": {
+    "type": "ranked_list",
+    "value": [
+      "Computers",
+      "Cell phones",
+      "Home Appliances"
+    ]
+  },
+  "top_brand_margin_pct_2024": {
+    "type": "top_1",
+    "value": "A. Datum"
+  },
+  "top5_brands_net_sales_2024": {
+    "type": "ranked_list",
+    "value": [
+      "Contoso",
+      "The Phone Company",
+      "Adventure Works",
+      "Wide World Importers",
+      "Proseware"
+    ]
+  },
+  "top_continent_quantity_2024": {
+    "type": "top_1",
+    "value": "North America"
+  },
+  "top_subcategory_quantity_2024": {
+    "type": "top_1",
+    "value": "Movie DVD"
+  },
+  "top3_brands_margin_pct_computers_2024": {
+    "type": "ranked_list",
+    "value": [
+      "Contoso",
+      "Proseware",
+      "Wide World Importers"
+    ]
+  },
+  "top3_countries_net_sales_2023": {
+    "type": "ranked_list",
+    "value": [
+      "Online",
+      "United States",
+      "Germany"
+    ]
+  },
+  "best_year_margin_pct": {
+    "type": "top_1",
+    "value": "2023"
+  },
+  "most_improved_category_margin_pct_2022_2023": {
+    "type": "top_1",
+    "value": "Computers"
+  },
+  "h1_vs_h2_net_sales_2023": {
+    "type": "comparison",
+    "value": "H1"
+  },
+  "germany_vs_usa_net_sales_2024": {
+    "type": "comparison",
+    "value": "United States"
+  },
+  "usa_net_sales_trend_2022_2023": {
+    "type": "trend",
+    "value": "down"
+  },
+  "net_sales_by_quarter_2023": {
+    "type": "ranked_list",
+    "value": [
+      "Q1",
+      "Q2",
+      "Q3",
+      "Q4"
+    ]
+  },
+  "top_month_net_sales_2023": {
+    "type": "month",
+    "value": "February"
+  }
+}
