@@ -1,0 +1,84 @@
+model Model
+    culture: en-US
+
+table Sales
+    partition Sales = m
+        mode: directLake
+        source
+            # NOTE: schemaName may need to be adjusted for your Fabric Lakehouse.
+            # For Fabric Warehouse use 'dbo'. For Lakehouse, remove schemaName or use the default schema.
+            entityName: Sales
+            schemaName: dbo
+            expressionSource: DatabaseQuery
+
+    measure 'Net Sales' = SUM(Sales[NetSales])
+        formatString: "$#,0.00"
+
+    measure 'Margin' = SUMX(Sales, Sales[NetSales] - Sales[UnitCost] * Sales[Quantity])
+        formatString: "$#,0.00"
+
+    measure 'Margin %' = DIVIDE([Margin], [Net Sales])
+        formatString: "0.00%"
+
+    measure 'Quantity' = SUM(Sales[Quantity])
+        formatString: "#,0"
+
+table Products
+    partition Products = m
+        mode: directLake
+        source
+            # NOTE: schemaName may need to be adjusted for your Fabric Lakehouse.
+            # For Fabric Warehouse use 'dbo'. For Lakehouse, remove schemaName or use the default schema.
+            entityName: Products
+            schemaName: dbo
+            expressionSource: DatabaseQuery
+
+table Customers
+    partition Customers = m
+        mode: directLake
+        source
+            # NOTE: schemaName may need to be adjusted for your Fabric Lakehouse.
+            # For Fabric Warehouse use 'dbo'. For Lakehouse, remove schemaName or use the default schema.
+            entityName: Customers
+            schemaName: dbo
+            expressionSource: DatabaseQuery
+
+table Stores
+    partition Stores = m
+        mode: directLake
+        source
+            # NOTE: schemaName may need to be adjusted for your Fabric Lakehouse.
+            # For Fabric Warehouse use 'dbo'. For Lakehouse, remove schemaName or use the default schema.
+            entityName: Stores
+            schemaName: dbo
+            expressionSource: DatabaseQuery
+
+table Date
+    partition Date = m
+        mode: directLake
+        source
+            # NOTE: schemaName may need to be adjusted for your Fabric Lakehouse.
+            # For Fabric Warehouse use 'dbo'. For Lakehouse, remove schemaName or use the default schema.
+            entityName: Date
+            schemaName: dbo
+            expressionSource: DatabaseQuery
+
+relationship SalesToProducts
+    fromColumn: Sales.ProductKey
+    toColumn: Products.ProductKey
+    cardinality: manyToOne
+
+relationship SalesToCustomers
+    fromColumn: Sales.CustomerKey
+    toColumn: Customers.CustomerKey
+    cardinality: manyToOne
+
+relationship SalesToStores
+    fromColumn: Sales.StoreKey
+    toColumn: Stores.StoreKey
+    cardinality: manyToOne
+
+relationship SalesToDate
+    fromColumn: Sales.OrderDate
+    toColumn: Date.Date
+    cardinality: manyToOne
