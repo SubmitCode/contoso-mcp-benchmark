@@ -1,6 +1,28 @@
-data/
-.env
-results/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Environment & secrets
+.env
+.env.*
+
+# Data (large binary files)
+data/
+
+# Benchmark results
+results/
+
+# macOS
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# pytest
 .pytest_cache/

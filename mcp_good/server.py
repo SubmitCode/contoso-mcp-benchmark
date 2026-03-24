@@ -1,11 +1,10 @@
 import json
 from pathlib import Path
-from fabric_client.dax import execute_dax
+from fabric_client.sql import execute_measure_query, get_distinct_values, MEASURE_EXPRS, DIMENSION_MAP
 
 _config = json.loads((Path(__file__).parent / "tool_config.json").read_text())
 TOP_N = _config["top_n_default"]
 MEASURES = _config["measures"]
-DIMENSIONS = _config["dimensions"]
 SAMPLES = _config["sample_values"]
 
 
@@ -29,39 +28,25 @@ def get_kpi(
     """
     Query a KPI measure grouped by dimensions.
 
-    Available measures: Net Sales (time_span), Margin (time_span), Margin % (time_span), Quantity (time_span)
-    Available dimensions: product (ProductName, Category, Subcategory, Brand), store (StoreName, Country), date (Year, Quarter, Month)
+    Available measures: Net Sales, Margin, Margin %, Quantity
+    Available dimensions: ProductName, Category, Subcategory, Brand, Country, Year, Quarter, Month
 
-    All measures are time_span and require date_range: {"from": "YYYY-MM-DD", "to": "YYYY-MM-DD"}
+    All measures require date_range: {"from": "YYYY-MM-DD", "to": "YYYY-MM-DD"}
 
     Results are capped at 50 rows. Use filters to narrow results.
     Sample countries: United States, Germany, France, United Kingdom, Australia, Italy, Canada, Netherlands
     Sample categories: Computers, Cell phones, TV and Video, Audio, Cameras and camcorders
     """
     _validate_measure_filters(measure, date_range)
-
     top_n = _top_n if _top_n is not None else TOP_N
-    dim_str = ", ".join(f"'{d}'" for d in dimensions)
-    filter_parts = [
-        f"'Date'[Date] >= DATE({date_range['from'].replace('-', ',')})",
-        f"'Date'[Date] <= DATE({date_range['to'].replace('-', ',')})",
-    ]
-
-    if filters:
-        for col, val in filters.items():
-            filter_parts.append(f"\"{val}\" IN VALUES('{col}'[{col}])")
-
-    where = ", ".join(filter_parts)
-
-    # Use CALCULATETABLE with direct filter predicates and correct alias syntax
-    dax = (
-        f"EVALUATE TOPN({top_n}, "
-        f"CALCULATETABLE("
-        f"SUMMARIZECOLUMNS({dim_str}, \"{measure}\", [{measure}]), "
-        f"{where}"
-        f"), [{measure}], DESC)"
+    return execute_measure_query(
+        measure=measure,
+        dimensions=dimensions,
+        date_from=date_range["from"],
+        date_to=date_range["to"],
+        filters=filters,
+        top_n=top_n,
     )
-    return execute_dax(dax)
 
 
 def get_top_products(
@@ -83,19 +68,24 @@ def get_top_products(
     _validate_measure_filters(measure, date_range)
     n = min(n, TOP_N)
     filters = {"Category": category} if category else None
-    return get_kpi(measure=measure, dimensions=["ProductName", "Category"], date_range=date_range, filters=filters, _top_n=n)
+    return execute_measure_query(
+        measure=measure,
+        dimensions=["ProductName", "Category"],
+        date_from=date_range["from"],
+        date_to=date_range["to"],
+        filters=filters,
+        top_n=n,
+    )
 
 
 def get_dimension_values(dimension_column: str) -> list:
     """
     Get distinct values for a dimension column. Use before filtering to see valid values.
 
-    Available columns: Country, Category, Subcategory, Brand, StoreName, Year, Quarter, Month
+    Available columns: Country, Category, Subcategory, Brand, ProductName, Year, Quarter, Month
     Returns at most 50 values.
     """
-    dax = f"EVALUATE TOPN({TOP_N}, VALUES('{dimension_column}'), '{dimension_column}'[{dimension_column}])"
-    rows = execute_dax(dax)
-    return [r.get(f"[{dimension_column}]", r.get(dimension_column)) for r in rows]
+    return get_distinct_values(dimension_column, top_n=TOP_N)
 
 
 if __name__ == "__main__":

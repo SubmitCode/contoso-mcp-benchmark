@@ -2,83 +2,139 @@ model Model
     culture: en-US
 
 table Sales
-    partition Sales = m
+    partition Sales = entity
         mode: directLake
         source
-            # NOTE: schemaName may need to be adjusted for your Fabric Lakehouse.
-            # For Fabric Warehouse use 'dbo'. For Lakehouse, remove schemaName or use the default schema.
-            entityName: Sales
-            schemaName: dbo
-            expressionSource: DatabaseQuery
+            entityName: sales
 
-    measure 'Net Sales' = SUM(Sales[NetSales])
+    column ProductKey
+        dataType: int64
+        sourceColumn: ProductKey
+
+    column CustomerKey
+        dataType: int64
+        sourceColumn: CustomerKey
+
+    column StoreKey
+        dataType: int64
+        sourceColumn: StoreKey
+
+    column OrderDate
+        dataType: dateTime
+        sourceColumn: OrderDate
+
+    column Quantity
+        dataType: int64
+        sourceColumn: Quantity
+
+    column NetPrice
+        dataType: decimal
+        sourceColumn: NetPrice
+
+    column UnitCost
+        dataType: decimal
+        sourceColumn: UnitCost
+
+    measure 'Net Sales' = SUMX(Sales, Sales[Quantity] * Sales[NetPrice])
         formatString: "$#,0.00"
 
-    measure 'Margin' = SUMX(Sales, Sales[NetSales] - Sales[UnitCost] * Sales[Quantity])
+    measure Margin = SUMX(Sales, (Sales[NetPrice] - Sales[UnitCost]) * Sales[Quantity])
         formatString: "$#,0.00"
 
     measure 'Margin %' = DIVIDE([Margin], [Net Sales])
         formatString: "0.00%"
 
-    measure 'Quantity' = SUM(Sales[Quantity])
+    measure Quantity = SUM(Sales[Quantity])
         formatString: "#,0"
 
 table Products
-    partition Products = m
+    partition Products = entity
         mode: directLake
         source
-            # NOTE: schemaName may need to be adjusted for your Fabric Lakehouse.
-            # For Fabric Warehouse use 'dbo'. For Lakehouse, remove schemaName or use the default schema.
-            entityName: Products
-            schemaName: dbo
-            expressionSource: DatabaseQuery
+            entityName: product
+
+    column ProductKey
+        dataType: int64
+        sourceColumn: ProductKey
+
+    column Brand
+        dataType: string
+        sourceColumn: Brand
+
+    column CategoryName
+        dataType: string
+        sourceColumn: CategoryName
+
+    column SubCategoryName
+        dataType: string
+        sourceColumn: SubCategoryName
 
 table Customers
-    partition Customers = m
+    partition Customers = entity
         mode: directLake
         source
-            # NOTE: schemaName may need to be adjusted for your Fabric Lakehouse.
-            # For Fabric Warehouse use 'dbo'. For Lakehouse, remove schemaName or use the default schema.
-            entityName: Customers
-            schemaName: dbo
-            expressionSource: DatabaseQuery
+            entityName: customer
+
+    column CustomerKey
+        dataType: int64
+        sourceColumn: CustomerKey
+
+    column Country
+        dataType: string
+        sourceColumn: Country
+
+    column Continent
+        dataType: string
+        sourceColumn: Continent
 
 table Stores
-    partition Stores = m
+    partition Stores = entity
         mode: directLake
         source
-            # NOTE: schemaName may need to be adjusted for your Fabric Lakehouse.
-            # For Fabric Warehouse use 'dbo'. For Lakehouse, remove schemaName or use the default schema.
-            entityName: Stores
-            schemaName: dbo
-            expressionSource: DatabaseQuery
+            entityName: store
+
+    column StoreKey
+        dataType: int64
+        sourceColumn: StoreKey
+
+    column CountryName
+        dataType: string
+        sourceColumn: CountryName
 
 table Date
-    partition Date = m
+    partition Date = entity
         mode: directLake
         source
-            # NOTE: schemaName may need to be adjusted for your Fabric Lakehouse.
-            # For Fabric Warehouse use 'dbo'. For Lakehouse, remove schemaName or use the default schema.
-            entityName: Date
-            schemaName: dbo
-            expressionSource: DatabaseQuery
+            entityName: date
+
+    column Date
+        dataType: dateTime
+        sourceColumn: Date
+
+    column Year
+        dataType: int64
+        sourceColumn: Year
+
+    column Month
+        dataType: string
+        sourceColumn: Month
+
+    column Quarter
+        dataType: string
+        sourceColumn: Quarter
 
 relationship SalesToProducts
     fromColumn: Sales.ProductKey
     toColumn: Products.ProductKey
-    cardinality: manyToOne
 
 relationship SalesToCustomers
     fromColumn: Sales.CustomerKey
     toColumn: Customers.CustomerKey
-    cardinality: manyToOne
 
 relationship SalesToStores
     fromColumn: Sales.StoreKey
     toColumn: Stores.StoreKey
-    cardinality: manyToOne
 
 relationship SalesToDate
     fromColumn: Sales.OrderDate
     toColumn: Date.Date
-    cardinality: manyToOne
