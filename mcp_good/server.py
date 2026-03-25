@@ -22,9 +22,9 @@ _DIMENSION_COLUMNS: dict[str, str] = {
     "Country":         "Stores[CountryName]",
     "CountryName":     "Stores[CountryName]",
     "Continent":       "Customers[Continent]",
-    "Year":            "Date[Year]",
-    "Month":           "Date[Month]",
-    "Quarter":         "Date[Quarter]",
+    "Year":            "'Date'[Year]",
+    "Month":           "'Date'[Month]",
+    "Quarter":         "'Date'[Quarter]",
 }
 
 
@@ -52,20 +52,26 @@ def _build_kpi_dax(
         for col, val in filters.items():
             if col in _DIMENSION_COLUMNS:
                 dax_col = _DIMENSION_COLUMNS[col]
-                table = dax_col.split("[")[0]
-                filter_parts.append(f'FILTER(ALL({table}), {dax_col} = "{val}")')
-    cols_str = ",\n        ".join(cols)
+                table = dax_col.split("[")[0].strip("'")
+                filter_parts.append(f'FILTER(ALL(\'{table}\'), {dax_col} = "{val}")')
     filters_str = ",\n        ".join(filter_parts)
+    # Build groupBy columns section (may be empty for scalar aggregates)
+    if cols:
+        cols_str = ",\n        ".join(cols)
+        groupby_part = f"        {cols_str},\n"
+    else:
+        groupby_part = ""
     return (
         f"EVALUATE\n"
         f"TOPN({top_n},\n"
         f"    SUMMARIZECOLUMNS(\n"
-        f"        {cols_str},\n"
+        f"{groupby_part}"
         f"        {filters_str},\n"
         f'        "{measure}", [{measure}]\n'
         f"    ),\n"
         f"    [{measure}], DESC\n"
-        f")"
+        f")\n"
+        f"ORDER BY [{measure}] DESC"
     )
 
 
