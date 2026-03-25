@@ -1,0 +1,110 @@
+prompt_id,question,complexity,answer_type,server,model,input_tokens,output_tokens,total_tokens,tool_calls,cost_usd,quality_score,llm_quality_score,llm_rationale,final_answer,error
+P01,What were the total net sales in 2024?,easy,scalar,bad,gpt-5.4-mini,16563,132,16695,3,0.013016,1.0,1.0,The assistant gave the exact expected total net sales for 2024.,"Total net sales in 2024 were **83,795,461.73**.",
+P01,What were the total net sales in 2024?,easy,scalar,good,gpt-5.4-mini,15337,230,15567,10,0.012538,,,,,Max turns exceeded
+P02,What was the total quantity of units sold in 2024?,easy,scalar,bad,gpt-5.4-mini,53239,252,53491,6,0.041063,1.0,1.0,The assistant gave the correct total quantity for 2024; the numeric value matches the expected answer aside from formatting.,"The total quantity of units sold in 2024 was **331,195**.",
+P02,What was the total quantity of units sold in 2024?,easy,scalar,good,gpt-5.4-mini,10279,220,10499,6,0.008699,0.0,0.0,The assistant did not provide the requested total quantity of units sold in 2024 and instead reported a query error.,I couldn’t retrieve the 2024 total quantity from the dataset due to a query error in the data service.,
+P03,Which country had the highest net sales in 2024?,easy,top_1,bad,gpt-5.4-mini,25085,233,25318,4,0.019862,0.0,0.0,"The assistant named US, but the expected answer is Online, so it answered incorrectly.",The country with the highest net sales in 2024 was **US**.,
+P03,Which country had the highest net sales in 2024?,easy,top_1,good,gpt-5.4-mini,3544,83,3627,2,0.003031,1.0,1.0,"The assistant correctly identified Online as having the highest net sales in 2024, matching the expected answer.","In 2024, **Online** had the highest net sales: **49.34M**.",
+P04,What were the net sales in Germany in 2024?,easy,scalar,bad,gpt-5.4-mini,24971,184,25155,4,0.019556,0.0,0.0,"The assistant gave a specific net sales figure, but it does not match the expected value for Germany in 2024.","Net sales in Germany in 2024 were **11,928,264.40**.",
+P04,What were the net sales in Germany in 2024?,easy,scalar,good,gpt-5.4-mini,8635,206,8841,6,0.007403,1.0,1.0,The assistant’s answer matches the expected net sales value for Germany in 2024 exactly.,"Net sales in Germany in 2024 were **4,885,648.88**.",
+P05,What was the overall margin % across all sales in 2024?,easy,scalar,bad,gpt-5.4-mini,44148,287,44435,5,0.034403,1.0,1.0,"The assistant provided the exact expected overall margin percentage for 2024, matching both the value and the question asked.",The overall margin % across all sales in 2024 was **55.99%**.,
+P05,What was the overall margin % across all sales in 2024?,easy,scalar,good,gpt-5.4-mini,7267,275,7542,6,0.006688,0.0,0.0,"The assistant did not provide the requested margin percentage for 2024 and instead refused due to an error, so it failed to answer the question.",I couldn’t retrieve the 2024 overall margin % from the dataset because the query endpoint returned a 400 error for aggregate-only requests.,
+P06,Which product category had the highest net sales in 2024?,easy,top_1,bad,gpt-5.4-mini,37791,221,38012,4,0.029338,1.0,1.0,The assistant correctly identified Computers as the product category with the highest net sales in 2024.,"In 2024, the **Computers** category had the highest net sales.",
+P06,Which product category had the highest net sales in 2024?,easy,top_1,good,gpt-5.4-mini,6807,166,6973,4,0.005852,1.0,1.0,The assistant correctly identified Computers as the product category with the highest net sales in 2024.,"In 2024, **Computers** had the highest net sales, at **29,856,205.09**.",
+P07,What were the net sales for each quarter in 2023? List Q1 through Q4.,medium,ranked_list,bad,gpt-5.4-mini,43270,272,43542,4,0.033677,1.0,0.5,"The assistant provided a complete Q1-Q4 list for 2023 net sales, but the values do not match the expected answer and appear unsupported by the prompt.","Here are the 2023 net sales by quarter:
+
+- Q1: 97,602,734.96
+- Q2: 68,373,137.29
+- Q3: 73,292,012.71
+- Q4: 79,157,992.56",
+P07,What were the net sales for each quarter in 2023? List Q1 through Q4.,medium,ranked_list,good,gpt-5.4-mini,7173,268,7441,5,0.006586,0.0,0.0,"The assistant did not provide the requested quarterly net sales values and instead reported an error, so it failed to answer the question.","I couldn’t retrieve the quarter-level values from the dataset because the query endpoint returned an error for quarter-based aggregation.
+
+If you want, I can still help by trying an alternate breakdown (for example by month and then summing into quarters), but the direct quarter query failed.",
+P08,What are the top 3 product categories by net sales in 2024?,medium,ranked_list,bad,gpt-5.4-mini,37084,281,37365,4,0.029077,1.0,1.0,"The assistant identified the exact top 3 product categories in the correct order, matching the expected answer.","The top 3 product categories by net sales in 2024 are:
+
+1. **Computers** — **29.86M**
+2. **Cell phones** — **16.60M**
+3. **Home Appliances** — **13.64M**",
+P08,What are the top 3 product categories by net sales in 2024?,medium,ranked_list,good,gpt-5.4-mini,10203,238,10441,6,0.008723,1.0,1.0,"The assistant correctly identified the top three product categories in the expected order, and the included net sales figures are consistent with the question.","The top 3 product categories by net sales in 2024 were:
+
+1. Computers — 29.86M  
+2. Cell phones — 16.60M  
+3. Home Appliances — 13.64M",
+P09,Which brand had the highest margin % in 2024?,medium,top_1,bad,gpt-5.4-mini,38342,332,38674,5,0.03025,0.0,1.0,The assistant correctly identified Fabrikam as the brand with the highest margin % in 2024.,The brand with the highest margin % in 2024 was **Fabrikam** at **58.44%**.,
+P09,Which brand had the highest margin % in 2024?,medium,top_1,good,gpt-5.4-mini,8596,185,8781,5,0.007279,1.0,1.0,The assistant correctly identified Fabrikam as the brand with the highest margin % in 2024.,"In 2024, **Fabrikam  ** had the highest margin %, at **58.44%**.",
+P10,Did Germany or the United States have higher net sales in 2024?,medium,comparison,bad,gpt-5.4-mini,39570,263,39833,5,0.030861,1.0,1.0,"The assistant correctly identified the United States as having higher net sales in 2024, matching the expected answer.","The **United States** had higher net sales in **2024**.
+
+- **United States:** 15,658,408.76  
+- **Germany:** 4,885,648.88",
+P10,Did Germany or the United States have higher net sales in 2024?,medium,comparison,good,gpt-5.4-mini,6873,199,7072,5,0.00605,1.0,1.0,"The assistant correctly identified the United States as having higher net sales than Germany in 2024, matching the expected answer.","The United States had higher net sales than Germany in 2024.
+
+- United States: 15.66M
+- Germany: 4.89M",
+P11,What were the net sales in the first half (Jan–Jun) vs second half (Jul–Dec) of 2023? Which half was higher?,medium,comparison,bad,gpt-5.4-mini,88030,590,88620,7,0.068678,1.0,1.0,"The assistant correctly identified that Jan–Jun net sales were higher than Jul–Dec, matching the expected winner H1.","In 2023:
+
+- Jan–Jun net sales: **165,975,872.25**
+- Jul–Dec net sales: **152,450,005.27**
+
+**The first half was higher** by about **13.53M**.",
+P11,What were the net sales in the first half (Jan–Jun) vs second half (Jul–Dec) of 2023? Which half was higher?,medium,comparison,good,gpt-5.4-mini,6774,221,6995,5,0.006075,1.0,0.0,"The assistant refused to answer the question and did not identify which half had higher net sales, so it did not provide the expected result.","I couldn’t compute that with the available query tool because it requires an explicit date range, and the tool interface here doesn’t expose a way to pass Jan–Jun vs Jul–Dec filters separately.
+
+If you want, I can still help structure the exact queries for:
+- Jan 1, 2023 – Jun 30, 2023
+- Jul 1, 2023 – Dec 31, 2023
+
+and then compare the two halves.",
+P12,What are the top 5 brands by net sales in 2024?,medium,ranked_list,bad,gpt-5.4-mini,1548,277,1825,2,0.002407,1.0,1.0,"The assistant listed the exact top 5 brands in the correct order, matching the expected answer despite adding net sales figures.","Top 5 brands by net sales in 2024:
+
+1. The Phone Company — 14,847,271.70  
+2. Adventure Works — 14,736,334.71  
+3. Contoso — 12,026,693.89  
+4. Wide World Importers — 10,763,380.53  
+5. Proseware — 7,134,578.50",
+P12,What are the top 5 brands by net sales in 2024?,medium,ranked_list,good,gpt-5.4-mini,3671,188,3859,2,0.003599,1.0,1.0,"The assistant correctly identified the top 5 brands in the expected order, and the additional net sales figures do not conflict with the answer.","Top 5 brands by net sales in 2024:
+
+1. The Phone Company — 14,847,271.70
+2. Adventure Works — 14,736,334.71
+3. Contoso — 12,026,693.89
+4. Wide World Importers — 10,763,380.53
+5. Proseware — 7,134,578.50
+
+Note: the dataset contains some duplicate brand variants with trailing spaces (e.g. “Contoso ”, “Fabrikam  ”), so I used the exact brand rows returned by the model.",
+P13,Which continent had the highest total quantity sold in 2024?,medium,top_1,bad,gpt-5.4-mini,111071,387,111458,7,0.085045,0.0,0.0,"The assistant named Europe, but the expected correct continent was North America.",The continent with the highest total quantity sold in 2024 was **Europe**.,
+P13,Which continent had the highest total quantity sold in 2024?,medium,top_1,good,gpt-5.4-mini,3425,83,3508,2,0.002942,1.0,1.0,The assistant correctly identified North America as the continent with the highest total quantity sold in 2024.,"North America had the highest total quantity sold in 2024, with 191,586 units.",
+P14,Which product subcategory sold the most units in 2024?,hard,top_1,bad,gpt-5.4-mini,73337,376,73713,6,0.056695,0.0,0.0,"The assistant named Home Theater System instead of the expected Movie DVD, so the answer is incorrect.","The **top-selling product subcategory in 2024** is **Home Theater System** — though the model returned a tied value across all subcategories, so the data appears not to be filtering by subcategory correctly for this query.",
+P14,Which product subcategory sold the most units in 2024?,hard,top_1,good,gpt-5.4-mini,5488,132,5620,3,0.00471,1.0,1.0,"The assistant identified the correct product subcategory, Movie DVD, and its stated unit count is consistent with the expected answer.","In 2024, **Movie DVD** sold the most units, with **60,027** total units sold.",
+P15,What are the top 3 brands by margin % within the Computers category in 2024?,hard,ranked_list,bad,gpt-5.4-mini,30184,379,30563,4,0.024343,1.0,1.0,The assistant correctly identified the top 3 brands in the Computers category for 2024 and included matching brands in the correct order.,"Top 3 brands by margin % in the Computers category in 2024 are:
+
+1. **Contoso** — **59.64%**
+2. **Proseware** — **57.40%**
+3. **Wide World Importers** — **57.04%**",
+P15,What are the top 3 brands by margin % within the Computers category in 2024?,hard,ranked_list,good,gpt-5.4-mini,6930,260,7190,4,0.006368,1.0,1.0,"The assistant identified the correct top 3 brands in the Computers category for 2024, matching the expected ordering.","The top 3 brands by **Margin %** within **Computers** in **2024** are:
+
+1. **Contoso** — **59.64%**
+2. **Proseware** — **57.40%**
+3. **Wide World Importers** — **57.04%**
+
+Note: the dataset contains a few duplicate brand names with trailing spaces, but these are the top three distinct brands in the Computers category.",
+P16,"In which year — 2021, 2022, or 2023 — was the total margin % highest?",hard,top_1,bad,gpt-5.4-mini,40394,376,40770,6,0.031988,1.0,1.0,The assistant correctly identified 2023 as the year with the highest total margin %.,The total margin % was highest in **2023**.,
+P16,"In which year — 2021, 2022, or 2023 — was the total margin % highest?",hard,top_1,good,gpt-5.4-mini,9369,305,9674,7,0.008399,0.0,0.0,"The assistant refused to answer and did not identify 2023 as the highest total margin %, so it is incorrect.",I can’t reliably determine it from the available query interface because the KPI queries are returning an API error for this date-granularity request.,
+P17,Did net sales in the United States increase or decrease from 2022 to 2023?,hard,trend,bad,gpt-5.4-mini,19574,357,19931,5,0.016287,1.0,1.0,"The assistant correctly identified that U.S. net sales decreased from 2022 to 2023, matching the expected trend.","Net sales in the United States **decreased** from 2022 to 2023, falling from **109.7M** to **61.3M**.",
+P17,Did net sales in the United States increase or decrease from 2022 to 2023?,hard,trend,good,gpt-5.4-mini,8983,242,9225,5,0.007826,1.0,1.0,"The assistant correctly states that U.S. net sales decreased from 2022 to 2023, matching the expected direction.","Net sales in the United States **decreased** from 2022 to 2023.
+
+- **2022:** $109.7M
+- **2023:** $61.3M
+
+That’s a drop of about **$48.4M** (roughly **44%**).",
+P18,Which month in 2023 had the highest net sales?,hard,month,bad,gpt-5.4-mini,30100,307,30407,4,0.023956,1.0,1.0,The assistant correctly identified February as the month with the highest net sales in 2023.,February had the highest net sales in 2023.,
+P18,Which month in 2023 had the highest net sales?,hard,month,good,gpt-5.4-mini,7133,265,7398,5,0.006542,0.0,0.0,The assistant did not answer the question and instead reported an error without identifying the month with the highest net sales.,"I couldn’t retrieve the monthly breakdown due to a dataset query error. If you want, I can try an alternate approach to identify the highest-sales month in 2023.",
+P19,What are the top 3 countries by net sales in 2023?,hard,ranked_list,bad,gpt-5.4-mini,45397,517,45914,7,0.036374,0.0,0.0,"The assistant answered with a different top 3 list than expected, omitting Online and Germany in the correct positions and including Canada instead.","The top 3 countries by net sales in 2023 were:
+
+1. US — 156,132,838.05  
+2. DE — 41,279,014.94  
+3. CA — 37,241,921.47",
+P19,What are the top 3 countries by net sales in 2023?,hard,ranked_list,good,gpt-5.4-mini,3557,104,3661,2,0.003136,1.0,1.0,"The assistant identified the same top 3 countries in the correct order, matching the expected answer despite adding sales figures.","Top 3 countries by net sales in 2023:
+
+1. Online — 193.9M  
+2. United States — 61.3M  
+3. Germany — 15.7M",
+P20,Which product category improved its margin % the most from 2022 to 2023?,hard,top_1,bad,gpt-5.4-mini,32176,609,32785,5,0.026873,1.0,1.0,The assistant correctly identified Computers as the product category with the largest margin % improvement from 2022 to 2023.,"**Computers** improved its margin % the most from 2022 to 2023, by about **0.33 percentage points** (from **55.91%** to **56.24%**).",
+P20,Which product category improved its margin % the most from 2022 to 2023?,hard,top_1,good,gpt-5.4-mini,5513,237,5750,4,0.005201,0.0,0.0,"The assistant identified a different product category than the expected answer; the correct category was Computers, not Cameras and camcorders.","**Cameras and camcorders** improved its margin % the most from 2022 to 2023, by about **+0.11 percentage points** (from **58.08%** to **58.19%**).",
