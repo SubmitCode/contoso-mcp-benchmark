@@ -34,8 +34,8 @@ SERVERS = {
     "bad": {
         "tools": [
             {
-                "name": "query_raw_table",
-                "description": bad_server.query_raw_table.__doc__,
+                "name": "query_table",
+                "description": bad_server.query_table.__doc__,
                 "inputSchema": {
                     "type": "object",
                     "properties": {"table_name": {"type": "string"}},
@@ -43,8 +43,8 @@ SERVERS = {
                 },
             },
             {
-                "name": "run_sql",
-                "description": bad_server.run_sql.__doc__,
+                "name": "run_dax",
+                "description": bad_server.run_dax.__doc__,
                 "inputSchema": {
                     "type": "object",
                     "properties": {"query": {"type": "string"}},

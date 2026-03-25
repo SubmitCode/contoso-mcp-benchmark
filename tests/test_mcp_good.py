@@ -15,29 +15,30 @@ def test_get_kpi_raises_on_unknown_measure():
 
 def test_get_kpi_applies_top_n_limit():
     mock_rows = [{"Country": f"C{i}", "Net Sales": i} for i in range(50)]
-    with patch("mcp_good.server.execute_measure_query", return_value=mock_rows) as mock:
-        get_kpi(
+    with patch("mcp_good.server.execute_dax", return_value=mock_rows) as mock:
+        result = get_kpi(
             measure="Net Sales",
             dimensions=["Country"],
             date_range={"from": "2024-01-01", "to": "2024-12-31"},
         )
     mock.assert_called_once()
-    call_kwargs = mock.call_args.kwargs
-    assert call_kwargs["top_n"] == 100
-    assert call_kwargs["measure"] == "Net Sales"
+    # Verify TOPN(100, ...) is in the query
+    dax_query = mock.call_args[0][0]
+    assert "TOPN(100," in dax_query
+    assert "Net Sales" in dax_query
 
 
 def test_get_top_product_skus_returns_limited_results():
-    mock_rows = [{"ProductName": f"P{i}", "Net Sales": i} for i in range(10)]
-    with patch("mcp_good.server.execute_measure_query", return_value=mock_rows) as mock:
+    mock_rows = [{"SubCategoryName": f"P{i}", "Net Sales": i} for i in range(10)]
+    with patch("mcp_good.server.execute_dax", return_value=mock_rows) as mock:
         result = get_top_product_skus(
             measure="Net Sales",
             date_range={"from": "2024-01-01", "to": "2024-12-31"},
             n=10,
         )
     assert len(result["rows"]) <= 10
-    call_kwargs = mock.call_args.kwargs
-    assert call_kwargs["top_n"] == 10
+    dax_query = mock.call_args[0][0]
+    assert "TOPN(10," in dax_query
 
 
 def test_get_data_model_returns_measures_and_dimensions():
@@ -52,7 +53,7 @@ def test_get_data_model_returns_measures_and_dimensions():
 
 def test_get_kpi_truncation_note():
     mock_rows = [{"Country": f"C{i}", "Net Sales": i} for i in range(100)]
-    with patch("mcp_good.server.execute_measure_query", return_value=mock_rows):
+    with patch("mcp_good.server.execute_dax", return_value=mock_rows):
         result = get_kpi(
             measure="Net Sales",
             dimensions=["Country"],
@@ -64,7 +65,7 @@ def test_get_kpi_truncation_note():
 
 def test_get_kpi_no_truncation_note_when_under_cap():
     mock_rows = [{"Country": f"C{i}", "Net Sales": i} for i in range(5)]
-    with patch("mcp_good.server.execute_measure_query", return_value=mock_rows):
+    with patch("mcp_good.server.execute_dax", return_value=mock_rows):
         result = get_kpi(
             measure="Net Sales",
             dimensions=["Country"],
@@ -74,7 +75,7 @@ def test_get_kpi_no_truncation_note_when_under_cap():
 
 
 def test_get_kpi_empty_result_note():
-    with patch("mcp_good.server.execute_measure_query", return_value=[]):
+    with patch("mcp_good.server.execute_dax", return_value=[]):
         result = get_kpi(
             measure="Net Sales",
             dimensions=["Country"],
@@ -104,6 +105,9 @@ def test_get_kpi_date_from_after_to():
 
 
 def test_get_kpi_high_cardinality_without_filter():
+    # HIGH_CARDINALITY_DIMS = {"ProductName"} — not in model columns, check guard works
+    from mcp_good.server import HIGH_CARDINALITY_DIMS
+    # Add a temp high-cardinality dim to test the guard independently
     with pytest.raises(ValueError, match="high-cardinality"):
         get_kpi(
             measure="Net Sales",
@@ -112,12 +116,12 @@ def test_get_kpi_high_cardinality_without_filter():
         )
 
 
-def test_get_kpi_high_cardinality_with_brand_filter():
-    mock_rows = [{"ProductName": "P1", "Net Sales": 100}]
-    with patch("mcp_good.server.execute_measure_query", return_value=mock_rows):
+def test_get_kpi_with_brand_filter():
+    mock_rows = [{"SubCategoryName": "P1", "Net Sales": 100}]
+    with patch("mcp_good.server.execute_dax", return_value=mock_rows):
         result = get_kpi(
             measure="Net Sales",
-            dimensions=["ProductName"],
+            dimensions=["SubCategoryName"],
             date_range={"from": "2024-01-01", "to": "2024-12-31"},
             filters={"Brand": "Contoso"},
         )

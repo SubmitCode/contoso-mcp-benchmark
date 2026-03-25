@@ -24,11 +24,11 @@
       "description": "Gross margin as a percentage of Net Sales. Requires a date range filter.",
       "example": "Margin % by brand in 2023"
     },
-    "Quantity": {
+    "Total Quantity": {
       "type": "time_span",
       "required_filters": ["date_range"],
       "description": "Total units sold. Requires a date range filter.",
-      "example": "Quantity sold by subcategory in H1 2024"
+      "example": "Total Quantity sold by subcategory in H1 2024"
     }
   },
   "sample_values": {

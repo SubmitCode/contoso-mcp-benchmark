@@ -44,7 +44,7 @@ table Sales
     measure 'Margin %' = DIVIDE([Margin], [Net Sales])
         formatString: "0.00%"
 
-    measure Quantity = SUM(Sales[Quantity])
+    measure 'Total Quantity' = SUM(Sales[Quantity])
         formatString: "#,0"
 
 table Products

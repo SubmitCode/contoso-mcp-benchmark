@@ -5,8 +5,7 @@
     "Net Sales": "Sum of Quantity × NetPrice",
     "Margin": "Sum of (NetPrice − UnitCost) × Quantity",
     "Margin %": "Margin / Net Sales (NULL if Net Sales = 0)",
-    "Quantity": "Sum of units sold",
-    "Total Quantity": "Alias for Quantity"
+    "Total Quantity": "Sum of units sold"
   },
   "dimensions": {
     "ProductName": "Individual product name (high-cardinality — always filter by Brand or Category first)",

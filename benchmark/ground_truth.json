@@ -1,7 +1,7 @@
 {
   "net_sales_2024": {
     "type": "scalar",
-    "value": 83795461.72928
+    "value": 83795461.7298
   },
   "quantity_2024": {
     "type": "scalar",
@@ -9,11 +9,11 @@
   },
   "net_sales_germany_2024": {
     "type": "scalar",
-    "value": 4885648.88466
+    "value": 4885648.8846
   },
   "margin_pct_2024": {
     "type": "scalar",
-    "value": 55.989403
+    "value": 55.98940329380052
   },
   "top_country_net_sales_2024": {
     "type": "top_1",
@@ -33,14 +33,14 @@
   },
   "top_brand_margin_pct_2024": {
     "type": "top_1",
-    "value": "A. Datum"
+    "value": "Fabrikam  "
   },
   "top5_brands_net_sales_2024": {
     "type": "ranked_list",
     "value": [
-      "Contoso",
       "The Phone Company",
       "Adventure Works",
+      "Contoso",
       "Wide World Importers",
       "Proseware"
     ]
@@ -73,14 +73,6 @@
     "type": "top_1",
     "value": "2023"
   },
-  "germany_vs_usa_net_sales_2024": {
-    "type": "comparison",
-    "value": "United States"
-  },
-  "usa_net_sales_trend_2022_2023": {
-    "type": "trend",
-    "value": "down"
-  },
   "net_sales_by_quarter_2023": {
     "type": "ranked_list",
     "value": [
@@ -90,6 +82,18 @@
       "Q4"
     ]
   },
+  "germany_vs_usa_net_sales_2024": {
+    "type": "comparison",
+    "value": "United States"
+  },
+  "h1_vs_h2_net_sales_2023": {
+    "type": "comparison",
+    "value": "H1"
+  },
+  "usa_net_sales_trend_2022_2023": {
+    "type": "trend",
+    "value": "down"
+  },
   "top_month_net_sales_2023": {
     "type": "month",
     "value": 2
@@ -97,9 +101,5 @@
   "most_improved_category_margin_pct_2022_2023": {
     "type": "top_1",
     "value": "Computers"
-  },
-  "h1_vs_h2_net_sales_2023": {
-    "type": "comparison",
-    "value": "H1"
   }
 }

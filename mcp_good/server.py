@@ -2,7 +2,7 @@ import datetime
 import json
 from pathlib import Path
 
-from fabric_client.sql import execute_measure_query, get_distinct_values, MEASURE_EXPRS, DIMENSION_MAP
+from fabric_client.dax import execute_dax
 
 _config = json.loads((Path(__file__).parent / "tool_config.json").read_text())
 TOP_N = 100
@@ -11,6 +11,62 @@ MEASURES = _config["measures"]
 _RESOURCES_PATH = Path(__file__).parent / "resources.json"
 
 HIGH_CARDINALITY_DIMS = {"ProductName"}
+
+# Dimension name → DAX column reference
+_DIMENSION_COLUMNS: dict[str, str] = {
+    "Brand":           "Products[Brand]",
+    "Category":        "Products[CategoryName]",
+    "CategoryName":    "Products[CategoryName]",
+    "Subcategory":     "Products[SubCategoryName]",
+    "SubCategoryName": "Products[SubCategoryName]",
+    "Country":         "Stores[CountryName]",
+    "CountryName":     "Stores[CountryName]",
+    "Continent":       "Customers[Continent]",
+    "Year":            "Date[Year]",
+    "Month":           "Date[Month]",
+    "Quarter":         "Date[Quarter]",
+}
+
+
+def _date_filter(date_from: str, date_to: str) -> str:
+    y1, m1, d1 = date_from.split("-")
+    y2, m2, d2 = date_to.split("-")
+    return (
+        f"FILTER(ALL('Date'), "
+        f"'Date'[Date] >= DATE({y1},{m1},{d1}) && "
+        f"'Date'[Date] <= DATE({y2},{m2},{d2}))"
+    )
+
+
+def _build_kpi_dax(
+    measure: str,
+    dimensions: list[str],
+    date_from: str,
+    date_to: str,
+    filters: dict | None,
+    top_n: int,
+) -> str:
+    cols = [_DIMENSION_COLUMNS[d] for d in dimensions]
+    filter_parts = [_date_filter(date_from, date_to)]
+    if filters:
+        for col, val in filters.items():
+            if col in _DIMENSION_COLUMNS:
+                dax_col = _DIMENSION_COLUMNS[col]
+                table = dax_col.split("[")[0]
+                filter_parts.append(f'FILTER(ALL({table}), {dax_col} = "{val}")')
+    cols_str = ",\n        ".join(cols)
+    filters_str = ",\n        ".join(filter_parts)
+    return (
+        f"EVALUATE\n"
+        f"TOPN({top_n},\n"
+        f"    SUMMARIZECOLUMNS(\n"
+        f"        {cols_str},\n"
+        f"        {filters_str},\n"
+        f'        "{measure}", [{measure}]\n'
+        f"    ),\n"
+        f"    [{measure}], DESC\n"
+        f")"
+    )
 
 
 def get_data_model() -> dict:
@@ -75,7 +131,7 @@ def get_kpi(
     dimensions: list,
     date_range: dict = None,
     filters: dict = None,
-    _top_n: int = None,   # internal override, not exposed in docstring
+    _top_n: int = None,
 ) -> dict:
     """
     Query a KPI measure grouped by one or more dimensions.
@@ -93,7 +149,7 @@ def get_kpi(
     _validate_measure_filters(measure, date_range)
     _check_cardinality(dimensions, filters)
     top_n = _top_n if _top_n is not None else TOP_N
-    rows = execute_measure_query(
+    dax = _build_kpi_dax(
         measure=measure,
         dimensions=dimensions,
         date_from=date_range["from"],
@@ -101,6 +157,7 @@ def get_kpi(
         filters=filters,
         top_n=top_n,
     )
+    rows = execute_dax(dax)
     return _wrap_result(rows, top_n)
 
 
@@ -111,11 +168,10 @@ def get_top_product_skus(
     category: str = None,
 ) -> dict:
     """
-    Get the top N individual product SKUs by a measure for a date range.
+    Get the top N product subcategories by a measure for a date range.
 
-    Returns individual product names (SKU-level), NOT brand or category aggregates.
     For brand-level or category-level rankings, use get_kpi() with the appropriate
-    dimension (e.g. dimensions=["Brand"] or dimensions=["Category"]).
+    dimension (e.g. dimensions=["Brand"] or dimensions=["CategoryName"]).
 
     Call get_data_model() first to see valid measures and sample queries.
 
@@ -130,14 +186,15 @@ def get_top_product_skus(
     _validate_measure_filters(measure, date_range)
     top_n = min(n, TOP_N)
     filters = {"Category": category} if category else None
-    rows = execute_measure_query(
+    dax = _build_kpi_dax(
         measure=measure,
-        dimensions=["ProductName", "Category"],
+        dimensions=["SubCategoryName", "CategoryName"],
         date_from=date_range["from"],
         date_to=date_range["to"],
         filters=filters,
         top_n=top_n,
     )
+    rows = execute_dax(dax)
     return _wrap_result(rows, top_n)
 
 
@@ -148,7 +205,14 @@ def get_dimension_values(dimension_column: str) -> list:
     Call get_data_model() to see all available dimension columns.
     Returns at most 100 values.
     """
-    return get_distinct_values(dimension_column, top_n=TOP_N)
+    if dimension_column not in _DIMENSION_COLUMNS:
+        raise ValueError(
+            f"Unknown dimension '{dimension_column}'. Available: {list(_DIMENSION_COLUMNS)}"
+        )
+    dax_col = _DIMENSION_COLUMNS[dimension_column]
+    query = f"EVALUATE TOPN(100, DISTINCT({dax_col}), {dax_col}, ASC)"
+    rows = execute_dax(query)
+    return [list(row.values())[0] for row in rows]
 
 
 if __name__ == "__main__":
