@@ -11,9 +11,17 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
+def _add_file_handler(log_path: Path) -> None:
+    handler = logging.FileHandler(log_path)
+    handler.setFormatter(logging.Formatter(
+        fmt="%(asctime)s  %(levelname)-8s  %(message)s",
+        datefmt="%H:%M:%S",
+    ))
+    logging.getLogger().addHandler(handler)
+
 from benchmark.llm_clients import run_openai, run_anthropic, RunResult
 from benchmark.cost_calculator import calculate_cost
-from benchmark.quality_scorer import score as quality_score, load_ground_truth
+from benchmark.quality_scorer import score as quality_score, llm_judge, load_ground_truth
 
 # Import tool functions directly (demo mode — no subprocess MCP)
 import mcp_bad.server as bad_server
@@ -27,7 +35,7 @@ SERVERS = {
         "tools": [
             {
                 "name": "query_raw_table",
-                "description": "Query a table and return all rows. Available tables: Sales, Products, Customers, Stores, Date.",
+                "description": bad_server.query_raw_table.__doc__,
                 "inputSchema": {
                     "type": "object",
                     "properties": {"table_name": {"type": "string"}},
@@ -35,12 +43,12 @@ SERVERS = {
                 },
             },
             {
-                "name": "execute_dax_query",
-                "description": "Execute any DAX query against the Contoso dataset.",
+                "name": "run_sql",
+                "description": bad_server.run_sql.__doc__,
                 "inputSchema": {
                     "type": "object",
-                    "properties": {"dax_query": {"type": "string"}},
-                    "required": ["dax_query"],
+                    "properties": {"query": {"type": "string"}},
+                    "required": ["query"],
                 },
             },
         ],
@@ -72,8 +80,8 @@ SERVERS = {
                 },
             },
             {
-                "name": "get_top_products",
-                "description": good_server.get_top_products.__doc__,
+                "name": "get_top_product_skus",
+                "description": good_server.get_top_product_skus.__doc__,
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -108,7 +116,23 @@ LLM_RUNNERS = {
 }
 
 
-def run_benchmark(models: list[str] | None = None, servers: list[str] | None = None) -> list[dict]:
+def _load_existing_results(path: Path) -> tuple[list[dict], set[tuple]]:
+    """Read an existing CSV and return (rows, set of completed (prompt_id, server, model))."""
+    rows, done = [], set()
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            rows.append(row)
+            done.add((row["prompt_id"], row["server"], row["model"]))
+    return rows, done
+
+
+def _find_latest_csv() -> Path | None:
+    results_dir = Path("results")
+    csvs = sorted(results_dir.glob("benchmark_*.csv")) if results_dir.exists() else []
+    return csvs[-1] if csvs else None
+
+
+def run_benchmark(models: list[str] | None = None, servers: list[str] | None = None, fresh: bool = False) -> list[dict]:
     active_llms = {k: v for k, v in LLM_RUNNERS.items() if models is None or k in models}
     active_servers = {k: v for k, v in SERVERS.items() if servers is None or k in servers}
 
@@ -120,23 +144,40 @@ def run_benchmark(models: list[str] | None = None, servers: list[str] | None = N
     ]
     total = len(runs)
 
-    out_path = Path("results") / f"benchmark_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    out_path.parent.mkdir(exist_ok=True)
-
     fieldnames = [
         "prompt_id", "question", "complexity", "answer_type",
         "server", "model", "input_tokens", "output_tokens", "total_tokens",
-        "tool_calls", "cost_usd", "quality_score", "error",
+        "tool_calls", "cost_usd", "quality_score",
+        "llm_quality_score", "llm_rationale",
+        "final_answer", "error",
     ]
 
-    results = []
+    # Resume from the latest CSV if it exists and is incomplete
+    existing_csv = None if fresh else _find_latest_csv()
+    if existing_csv:
+        results, done = _load_existing_results(existing_csv)
+        out_path = existing_csv
+        log_path = existing_csv.with_suffix(".log")
+        logging.info("Resuming from %s  (%d/%d already done)", out_path, len(done), total)
+    else:
+        results, done = [], set()
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        out_path = Path("results") / f"benchmark_{ts}.csv"
+        out_path.parent.mkdir(exist_ok=True)
+        log_path = out_path.with_suffix(".log")
+
+    _add_file_handler(log_path)
     logging.info("Starting benchmark: %d runs  →  %s", total, out_path)
 
-    with open(out_path, "w", newline="") as f:
+    with open(out_path, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+        if not existing_csv:
+            writer.writeheader()
 
         for i, (prompt, server_name, server, llm_name, llm_fn) in enumerate(runs, 1):
+            if (prompt["id"], server_name, llm_name) in done:
+                logging.info("[%d/%d] %s | %s | %s  (skip)", i, total, prompt["id"], server_name, llm_name)
+                continue
             logging.info("[%d/%d] %s | %s | %s", i, total, prompt["id"], server_name, llm_name)
             try:
                 result = llm_fn(prompt["question"], server["tools"], server["call"])
@@ -159,14 +200,18 @@ def run_benchmark(models: list[str] | None = None, servers: list[str] | None = N
 
             expected = _GROUND_TRUTH.get(prompt.get("answer_key"))
             q_score = quality_score(result.final_answer, expected)
+            judge = llm_judge(prompt["question"], result.final_answer, expected)
+            llm_q = judge["score"] if judge else None
+            llm_rationale = judge["rationale"] if judge else ""
 
             if result.error:
                 logging.error("  ✗  %s", result.error)
             else:
                 total_tok = result.input_tokens + result.output_tokens
                 q_str = f"{q_score:.2f}" if q_score is not None else "n/a"
-                logging.info("  ✓  %d calls | %s tok | $%.4f | quality=%s",
-                             result.tool_calls, f"{total_tok:,}", cost, q_str)
+                llm_str = f"{llm_q:.2f}" if llm_q is not None else "n/a"
+                logging.info("  ✓  %d calls | %s tok | $%.4f | quality=%s | llm_judge=%s",
+                             result.tool_calls, f"{total_tok:,}", cost, q_str, llm_str)
 
             row = {
                 "prompt_id": result.prompt_id,
@@ -181,6 +226,9 @@ def run_benchmark(models: list[str] | None = None, servers: list[str] | None = N
                 "tool_calls": result.tool_calls,
                 "cost_usd": round(cost, 6),
                 "quality_score": q_score,
+                "llm_quality_score": llm_q,
+                "llm_rationale": llm_rationale,
+                "final_answer": result.final_answer or "",
                 "error": result.error or "",
             }
             writer.writerow(row)
@@ -197,12 +245,12 @@ def _print_summary(results: list[dict]) -> None:
     totals: dict = defaultdict(lambda: {"cost": 0.0, "tokens": 0, "tool_calls": 0, "quality": 0.0, "quality_n": 0, "runs": 0})
     for r in results:
         key = f"{r['server']:4} | {r['model']}"
-        totals[key]["cost"] += r["cost_usd"]
-        totals[key]["tokens"] += r["total_tokens"]
-        totals[key]["tool_calls"] += r["tool_calls"]
+        totals[key]["cost"] += float(r["cost_usd"])
+        totals[key]["tokens"] += int(r["total_tokens"])
+        totals[key]["tool_calls"] += int(r["tool_calls"])
         totals[key]["runs"] += 1
-        if r["quality_score"] is not None:
-            totals[key]["quality"] += r["quality_score"]
+        if r["quality_score"] is not None and r["quality_score"] != "":
+            totals[key]["quality"] += float(r["quality_score"])
             totals[key]["quality_n"] += 1
 
     logging.info("\n%-40s %12s %12s %10s %12s", "Server | Model", "Total Cost", "Avg Tokens", "Avg Tools", "Avg Quality")
@@ -221,5 +269,7 @@ if __name__ == "__main__":
                         help="Models to run (default: all)")
     parser.add_argument("--servers", nargs="+", choices=list(SERVERS), default=None,
                         help="Servers to run (default: all)")
+    parser.add_argument("--fresh", action="store_true",
+                        help="Start a new CSV instead of resuming the latest")
     args = parser.parse_args()
-    run_benchmark(models=args.models, servers=args.servers)
+    run_benchmark(models=args.models, servers=args.servers, fresh=args.fresh)

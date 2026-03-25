@@ -73,14 +73,6 @@
     "type": "top_1",
     "value": "2023"
   },
-  "most_improved_category_margin_pct_2022_2023": {
-    "type": "top_1",
-    "value": "Computers"
-  },
-  "h1_vs_h2_net_sales_2023": {
-    "type": "comparison",
-    "value": "H1"
-  },
   "germany_vs_usa_net_sales_2024": {
     "type": "comparison",
     "value": "United States"
@@ -100,6 +92,14 @@
   },
   "top_month_net_sales_2023": {
     "type": "month",
-    "value": "February"
+    "value": 2
+  },
+  "most_improved_category_margin_pct_2022_2023": {
+    "type": "top_1",
+    "value": "Computers"
+  },
+  "h1_vs_h2_net_sales_2023": {
+    "type": "comparison",
+    "value": "H1"
   }
 }

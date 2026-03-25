@@ -34,8 +34,8 @@
       }
     },
     {
-      "description": "Top 10 brands by Margin in Q1 2024",
-      "tool": "get_top_products",
+      "description": "Top 10 product SKUs by Margin in Q1 2024",
+      "tool": "get_top_product_skus",
       "args": {
         "measure": "Margin",
         "date_range": {"from": "2024-01-01", "to": "2024-03-31"},
@@ -53,7 +53,7 @@
     },
     {
       "description": "Top products in the Computers category by Net Sales in 2023",
-      "tool": "get_top_products",
+      "tool": "get_top_product_skus",
       "args": {
         "measure": "Net Sales",
         "date_range": {"from": "2023-01-01", "to": "2023-12-31"},

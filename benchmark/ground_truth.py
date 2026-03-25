@@ -189,12 +189,12 @@ def _compute_custom(key: str) -> dict:
 
     if key == "top_month_net_sales_2023":
         rows = execute_sql(
-            "SELECT TOP 1 d.Month, SUM(s.Quantity * s.NetPrice) AS ns FROM dbo.sales s "
-            "LEFT JOIN dbo.date d ON CAST(s.OrderDate AS DATE) = CAST(d.Date AS DATE) "
+            "SELECT TOP 1 MONTH(CAST(s.OrderDate AS DATE)) AS month_num, "
+            "SUM(s.Quantity * s.NetPrice) AS ns FROM dbo.sales s "
             "WHERE s.OrderDate >= '2023-01-01' AND s.OrderDate <= '2023-12-31' "
-            "GROUP BY d.Month ORDER BY ns DESC"
+            "GROUP BY MONTH(CAST(s.OrderDate AS DATE)) ORDER BY ns DESC"
         )
-        return {"type": "month", "value": rows[0]["Month"]}
+        return {"type": "month", "value": int(rows[0]["month_num"])}
 
     if key == "most_improved_category_margin_pct_2022_2023":
         rows_prev = execute_sql(

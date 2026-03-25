@@ -104,14 +104,18 @@ def get_kpi(
     return _wrap_result(rows, top_n)
 
 
-def get_top_products(
+def get_top_product_skus(
     measure: str,
     date_range: dict,
     n: int = 10,
     category: str = None,
 ) -> dict:
     """
-    Get the top N products by a measure for a date range.
+    Get the top N individual product SKUs by a measure for a date range.
+
+    Returns individual product names (SKU-level), NOT brand or category aggregates.
+    For brand-level or category-level rankings, use get_kpi() with the appropriate
+    dimension (e.g. dimensions=["Brand"] or dimensions=["Category"]).
 
     Call get_data_model() first to see valid measures and sample queries.
 
@@ -153,7 +157,7 @@ if __name__ == "__main__":
         mcp = FastMCP("contoso-good")
         mcp.tool()(get_data_model)
         mcp.tool()(get_kpi)
-        mcp.tool()(get_top_products)
+        mcp.tool()(get_top_product_skus)
         mcp.tool()(get_dimension_values)
         mcp.run()
     except ImportError:

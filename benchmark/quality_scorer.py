@@ -1,7 +1,11 @@
 """Score LLM final answers against pre-computed ground truth."""
 import json
+import logging
+import os
 import re
 from pathlib import Path
+
+import openai
 
 _GT_PATH = Path(__file__).parent / "ground_truth.json"
 
@@ -81,8 +85,16 @@ def _score_ranked_list(answer: str, expected_list: list[str]) -> float:
     return total / len(expected_list)
 
 
+_COMPARISON_ALIASES: dict[str, list[str]] = {
+    "h1": ["h1", "first half", "first-half", "jan-jun", "jan–jun", "january-june", "january–june", "1st half"],
+    "h2": ["h2", "second half", "second-half", "jul-dec", "jul–dec", "july-december", "july–december", "2nd half"],
+}
+
+
 def _score_comparison(answer: str, winner: str) -> float:
-    return 1.0 if winner.lower() in answer.lower() else 0.0
+    answer_lower = answer.lower()
+    aliases = _COMPARISON_ALIASES.get(winner.lower(), [winner.lower()])
+    return 1.0 if any(a in answer_lower for a in aliases) else 0.0
 
 
 def _score_trend(answer: str, direction: str) -> float:
@@ -144,4 +156,89 @@ def score(answer: str, expected: dict | None) -> float | None:
     elif t == "month":
         return _score_month(answer, int(v))
     else:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# LLM-as-a-judge scorer
+# ---------------------------------------------------------------------------
+
+_JUDGE_MODEL = "gpt-5.4-mini"
+
+_JUDGE_PROMPT = """\
+You are a strict but fair judge evaluating whether an AI assistant correctly \
+answered a data analytics question.
+
+Question: {question}
+Expected answer: {expected}
+Assistant's answer: {answer}
+
+Score the assistant's answer on a scale from 0.0 to 1.0:
+- 1.0 = correct answer, even if wording differs from expected
+- 0.5 = partially correct (right direction but wrong numbers, or incomplete list)
+- 0.0 = wrong, refused to answer, or answered a different question
+
+Respond with ONLY a JSON object: {{"score": <float>, "rationale": "<one sentence>"}}
+"""
+
+
+def _get_judge_client() -> openai.OpenAI | None:
+    key = os.environ.get("OPENAI_API_KEY")
+    if not key:
+        return None
+    return openai.OpenAI(api_key=key)
+
+
+def llm_judge(question: str, answer: str, expected: dict | None) -> dict | None:
+    """Score an answer using an LLM judge.
+
+    Returns {"score": float, "rationale": str} or None if judging is unavailable.
+    """
+    if expected is None or not answer:
+        return None
+
+    client = _get_judge_client()
+    if client is None:
+        return None
+
+    # Format the expected answer for the judge
+    v = expected.get("value")
+    t = expected.get("type")
+    if t == "scalar":
+        expected_str = f"{v:,.2f}" if isinstance(v, (int, float)) else str(v)
+    elif t == "ranked_list":
+        expected_str = ", ".join(f"{i+1}. {item}" for i, item in enumerate(v))
+    elif t == "month":
+        names = MONTH_NAMES.get(int(v), [])
+        expected_str = names[0].title() if names else str(v)
+    elif t == "trend":
+        expected_str = f"The trend is {v} ({'increasing' if v == 'up' else 'decreasing'})"
+    elif t == "comparison":
+        expected_str = f"The winner is {v}"
+    else:
+        expected_str = str(v)
+
+    prompt = _JUDGE_PROMPT.format(
+        question=question,
+        expected=expected_str,
+        answer=answer,
+    )
+
+    try:
+        resp = client.chat.completions.create(
+            model=_JUDGE_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            max_completion_tokens=256,
+        )
+        text = resp.choices[0].message.content.strip()
+        # Parse JSON from response, handling markdown code fences
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        result = json.loads(text)
+        return {
+            "score": max(0.0, min(1.0, float(result["score"]))),
+            "rationale": result.get("rationale", ""),
+        }
+    except Exception as exc:
+        logging.warning("LLM judge failed: %s", exc)
         return None

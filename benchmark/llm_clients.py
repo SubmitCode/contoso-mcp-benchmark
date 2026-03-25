@@ -45,9 +45,18 @@ def _tools_to_openai(tools: list[dict]) -> list[dict]:
 _REASONING_MODELS = {"gpt-5.4", "gpt-5.4-mini"}  # models that use max_completion_tokens
 
 
+_SYSTEM_PROMPT = (
+    "You are a data analyst with access to the Contoso sales dataset. "
+    "Answer the user's question by using the available tools. "
+    "Never ask for clarification — always make reasonable assumptions "
+    "(e.g. infer the year or date range from the question itself) and answer directly. "
+    "Give a concise, definitive answer."
+)
+
+
 def run_openai(prompt: str, tools: list[dict], call_tool: Callable, model: str = "gpt-5.4") -> RunResult:
     client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    messages = [{"role": "user", "content": prompt}]
+    messages = [{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": prompt}]
     oai_tools = _tools_to_openai(tools)
     total_input, total_output, tool_call_count = 0, 0, 0
 
@@ -98,6 +107,7 @@ def run_openai(prompt: str, tools: list[dict], call_tool: Callable, model: str =
 def run_anthropic(prompt: str, tools: list[dict], call_tool: Callable, model: str = "claude-sonnet-4-6") -> RunResult:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     messages = [{"role": "user", "content": prompt}]
+    system = _SYSTEM_PROMPT
     ant_tools = [
         {
             "name": t["name"],
@@ -109,7 +119,7 @@ def run_anthropic(prompt: str, tools: list[dict], call_tool: Callable, model: st
     total_input, total_output, tool_call_count = 0, 0, 0
 
     for _ in range(10):
-        resp = client.messages.create(model=model, max_tokens=4096, messages=messages, tools=ant_tools)
+        resp = client.messages.create(model=model, max_tokens=4096, system=system, messages=messages, tools=ant_tools)
         total_input += resp.usage.input_tokens
         total_output += resp.usage.output_tokens
 

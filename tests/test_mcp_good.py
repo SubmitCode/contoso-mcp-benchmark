@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from mcp_good.server import get_kpi, get_top_products, get_data_model
+from mcp_good.server import get_kpi, get_top_product_skus, get_data_model
 
 
 def test_get_kpi_enforces_date_range_for_time_span_measure():
@@ -27,10 +27,10 @@ def test_get_kpi_applies_top_n_limit():
     assert call_kwargs["measure"] == "Net Sales"
 
 
-def test_get_top_products_returns_limited_results():
+def test_get_top_product_skus_returns_limited_results():
     mock_rows = [{"ProductName": f"P{i}", "Net Sales": i} for i in range(10)]
     with patch("mcp_good.server.execute_measure_query", return_value=mock_rows) as mock:
-        result = get_top_products(
+        result = get_top_product_skus(
             measure="Net Sales",
             date_range={"from": "2024-01-01", "to": "2024-12-31"},
             n=10,
