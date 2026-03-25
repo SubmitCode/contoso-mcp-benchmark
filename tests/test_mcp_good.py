@@ -3,9 +3,12 @@ from unittest.mock import patch
 from mcp_good.server import get_kpi, get_top_product_skus, get_data_model
 
 
-def test_get_kpi_enforces_date_range_for_time_span_measure():
-    with pytest.raises(ValueError, match="date_range"):
-        get_kpi(measure="Net Sales", dimensions=["Country"])  # missing date_range
+def test_get_kpi_accepts_no_date_range():
+    # date_range is now optional — omitting it queries all-time data
+    mock_rows = [{"Year": 2024, "Net Sales": 100}]
+    with patch("mcp_good.server.execute_dax", return_value=mock_rows):
+        result = get_kpi(measure="Net Sales", dimensions=["Year"])
+    assert result["rows"] == mock_rows
 
 
 def test_get_kpi_raises_on_unknown_measure():

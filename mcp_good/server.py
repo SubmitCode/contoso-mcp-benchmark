@@ -41,33 +41,39 @@ def _date_filter(date_from: str, date_to: str) -> str:
 def _build_kpi_dax(
     measure: str,
     dimensions: list[str],
-    date_from: str,
-    date_to: str,
+    date_from: str | None,
+    date_to: str | None,
     filters: dict | None,
     top_n: int,
 ) -> str:
     cols = [_DIMENSION_COLUMNS[d] for d in dimensions]
-    filter_parts = [_date_filter(date_from, date_to)]
+    filter_parts = []
+    if date_from and date_to:
+        filter_parts.append(_date_filter(date_from, date_to))
     if filters:
         for col, val in filters.items():
             if col in _DIMENSION_COLUMNS:
                 dax_col = _DIMENSION_COLUMNS[col]
                 table = dax_col.split("[")[0].strip("'")
                 filter_parts.append(f'FILTER(ALL(\'{table}\'), {dax_col} = "{val}")')
-    filters_str = ",\n        ".join(filter_parts)
     # Build groupBy columns section (may be empty for scalar aggregates)
     if cols:
         cols_str = ",\n        ".join(cols)
         groupby_part = f"        {cols_str},\n"
     else:
         groupby_part = ""
+    # Build filter section (may be empty when querying all-time data)
+    if filter_parts:
+        filters_part = ",\n        ".join(filter_parts) + ",\n        "
+    else:
+        filters_part = ""
     return (
         f"EVALUATE\n"
         f"TOPN({top_n},\n"
         f"    SUMMARIZECOLUMNS(\n"
         f"{groupby_part}"
-        f"        {filters_str},\n"
-        f'        "{measure}", [{measure}]\n'
+        f"        {filters_part}"
+        f'"{measure}", [{measure}]\n'
         f"    ),\n"
         f"    [{measure}], DESC\n"
         f")\n"
@@ -97,12 +103,8 @@ def _validate_date_range(date_range: dict) -> None:
 def _validate_measure_filters(measure: str, date_range: dict = None):
     if measure not in MEASURES:
         raise ValueError(f"Unknown measure '{measure}'. Available: {list(MEASURES)}")
-    if not date_range:
-        raise ValueError(
-            f"Measure '{measure}' requires a date_range filter: "
-            '{"from": "YYYY-MM-DD", "to": "YYYY-MM-DD"}'
-        )
-    _validate_date_range(date_range)
+    if date_range:
+        _validate_date_range(date_range)
 
 
 def _check_cardinality(dimensions: list, filters: dict | None) -> None:
@@ -144,10 +146,15 @@ def get_kpi(
 
     Call get_data_model() first to see all valid measures, dimensions, and sample queries.
 
-    measure: one of Net Sales, Margin, Margin %, Quantity
+    measure: one of Net Sales, Margin, Margin %, Total Quantity
     dimensions: list of dimension names (e.g. ["Country", "Year"])
-    date_range: required — {"from": "YYYY-MM-DD", "to": "YYYY-MM-DD"}
-    filters: optional dict to filter results (e.g. {"Brand": "Contoso"})
+    date_range: optional {"from": "YYYY-MM-DD", "to": "YYYY-MM-DD"} — omit for all-time
+    filters: optional dict to narrow results by a dimension value (e.g. {"Brand": "Contoso", "CategoryName": "Computers"})
+
+    Examples:
+      get_kpi("Net Sales", ["Country"], {"from":"2024-01-01","to":"2024-12-31"})
+      get_kpi("Margin %", ["Brand"], {"from":"2024-01-01","to":"2024-12-31"}, {"CategoryName":"Computers"})
+      get_kpi("Net Sales", ["Year"])  # all-time by year, no date_range needed
 
     Returns {"rows": [...], "_note": "..."} where _note is present when results
     are truncated (100-row cap) or empty.
@@ -155,11 +162,13 @@ def get_kpi(
     _validate_measure_filters(measure, date_range)
     _check_cardinality(dimensions, filters)
     top_n = _top_n if _top_n is not None else TOP_N
+    date_from = date_range["from"] if date_range else None
+    date_to = date_range["to"] if date_range else None
     dax = _build_kpi_dax(
         measure=measure,
         dimensions=dimensions,
-        date_from=date_range["from"],
-        date_to=date_range["to"],
+        date_from=date_from,
+        date_to=date_to,
         filters=filters,
         top_n=top_n,
     )
