@@ -65,7 +65,7 @@ def _top_n_by(n: int, group_col: str, measure: str, y1: int, m1: int, d1: int, y
     )
     rows = execute_dax(dax)
     col_name = group_col.split("[")[-1].rstrip("]")
-    return [r[col_name] for r in rows]
+    return [r[col_name].strip() if isinstance(r[col_name], str) else r[col_name] for r in rows]
 
 
 def generate() -> dict:

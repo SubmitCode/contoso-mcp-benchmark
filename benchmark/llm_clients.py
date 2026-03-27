@@ -54,8 +54,10 @@ _SYSTEM_PROMPT = (
 )
 
 
-def run_openai(prompt: str, tools: list[dict], call_tool: Callable, model: str = "gpt-5.4") -> RunResult:
-    client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+def run_openai(prompt: str, tools: list[dict], call_tool: Callable, model: str = "gpt-5.4",
+               *, base_url: str | None = None, api_key: str | None = None) -> RunResult:
+    client = openai.OpenAI(api_key=api_key or os.environ["OPENAI_API_KEY"], timeout=60,
+                           **({"base_url": base_url} if base_url else {}))
     messages = [{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": prompt}]
     oai_tools = _tools_to_openai(tools)
     total_input, total_output, tool_call_count = 0, 0, 0
@@ -104,8 +106,17 @@ def run_openai(prompt: str, tools: list[dict], call_tool: Callable, model: str =
                      final_answer="", error="Max turns exceeded")
 
 
+_OLLAMA_BASE_URL = "http://localhost:11434/v1"
+
+
+def run_qwen(prompt: str, tools: list[dict], call_tool: Callable, model: str = "qwen3:32b") -> RunResult:
+    return run_openai(prompt, tools, call_tool, model=model,
+                      base_url=_OLLAMA_BASE_URL,
+                      api_key="ollama")
+
+
 def run_anthropic(prompt: str, tools: list[dict], call_tool: Callable, model: str = "claude-sonnet-4-6") -> RunResult:
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=60)
     messages = [{"role": "user", "content": prompt}]
     system = _SYSTEM_PROMPT
     ant_tools = [

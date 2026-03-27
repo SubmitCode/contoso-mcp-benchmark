@@ -10,6 +10,8 @@ logging.basicConfig(
     format="%(asctime)s  %(levelname)-8s  %(message)s",
     datefmt="%H:%M:%S",
 )
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 def _add_file_handler(log_path: Path) -> None:
     handler = logging.FileHandler(log_path)
@@ -19,7 +21,7 @@ def _add_file_handler(log_path: Path) -> None:
     ))
     logging.getLogger().addHandler(handler)
 
-from benchmark.llm_clients import run_openai, run_anthropic, RunResult
+from benchmark.llm_clients import run_openai, run_anthropic, run_qwen, RunResult
 from benchmark.cost_calculator import calculate_cost
 from benchmark.quality_scorer import score as quality_score, llm_judge, load_ground_truth
 
@@ -113,6 +115,7 @@ LLM_RUNNERS = {
     "claude-opus-4-6":     lambda p, t, c: run_anthropic(p, t, c, model="claude-opus-4-6"),
     "claude-sonnet-4-6":   lambda p, t, c: run_anthropic(p, t, c, model="claude-sonnet-4-6"),
     "claude-haiku-4-5":    lambda p, t, c: run_anthropic(p, t, c, model="claude-haiku-4-5-20251001"),
+    "qwen3:32b":           lambda p, t, c: run_qwen(p, t, c, model="qwen3:32b"),
 }
 
 
@@ -236,8 +239,34 @@ def run_benchmark(models: list[str] | None = None, servers: list[str] | None = N
             results.append(row)
 
     logging.info("Results saved to %s", out_path)
+    _write_answers_json(results, out_path.with_name(out_path.stem + "_answers.json"))
     _print_summary(results)
     return results
+
+
+def _write_answers_json(results: list[dict], out_path: Path) -> None:
+    answers: dict = {}
+    for r in results:
+        pid = r["prompt_id"]
+        if pid not in answers:
+            answers[pid] = {
+                "question": r["question"],
+                "complexity": r.get("complexity"),
+                "answer_type": r.get("answer_type"),
+                "results": {},
+            }
+        key = f"{r['server']}_{r['model']}"
+        answers[pid]["results"][key] = {
+            "quality_score": r["quality_score"],
+            "llm_quality_score": r["llm_quality_score"],
+            "llm_rationale": r["llm_rationale"],
+            "final_answer": r["final_answer"],
+            "tool_calls": r["tool_calls"],
+            "cost_usd": r["cost_usd"],
+            "error": r["error"] or None,
+        }
+    out_path.write_text(json.dumps(answers, indent=2))
+    logging.info("Answers saved to %s", out_path)
 
 
 def _print_summary(results: list[dict]) -> None:
