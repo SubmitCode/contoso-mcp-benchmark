@@ -8,7 +8,7 @@ _config = json.loads((Path(__file__).parent / "tool_config.json").read_text())
 TOP_N = 100
 MEASURES = _config["measures"]
 
-_RESOURCES_PATH = Path(__file__).parent / "resources.json"
+_RESOURCES_PATH = Path(__file__).parent / "resources.md"
 
 HIGH_CARDINALITY_DIMS = {"ProductName"}
 
@@ -81,11 +81,11 @@ def _build_kpi_dax(
     )
 
 
-def get_data_model() -> dict:
+def get_data_model() -> str:
     """Return the Contoso data model: available measures, dimensions, sample queries,
     and anti-patterns. Call this first before constructing any query to understand
     what fields and combinations are valid."""
-    return json.loads(_RESOURCES_PATH.read_text())
+    return _RESOURCES_PATH.read_text()
 
 
 def _validate_date_range(date_range: dict) -> None:

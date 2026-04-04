@@ -24,8 +24,9 @@ results/
 .vscode/
 .idea/
 
-# Internal planning
+# Internal planning and developer tooling
 docs/superpowers/
+CLAUDE.md
 
 # pytest
 .pytest_cache/
